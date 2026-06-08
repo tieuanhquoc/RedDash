@@ -1,6 +1,6 @@
 [package]
 name = "redmine-dashboard"
-version = "0.1.0"
+version = "0.1.1"
 description = "RedDash — Redmine time tracking dashboard"
 authors = ["Tieu Anh Quoc <tieuanhquoc@gmail.com>"]
 license = "MIT"
