@@ -2,17 +2,36 @@
   "name": "redmine-dashboard",
   "version": "0.1.0",
   "private": true,
+  "description": "RedDash — Redmine time tracking dashboard (Next.js + Tauri)",
+  "author": {
+    "name": "Tieu Anh Quoc",
+    "email": "tieuanhquoc@gmail.com",
+    "url": "https://tieuanhquoc.info/"
+  },
+  "homepage": "https://tieuanhquoc.info/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tieuanhquoc/RedDash"
+  },
+  "license": "MIT",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 9990",
     "build": "next build",
-    "start": "next start"
+    "start": "next start -p 9990",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-fs": "^2.5.1",
+    "@tauri-apps/plugin-stronghold": "^2.3.1",
     "next": "16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

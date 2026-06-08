@@ -50,10 +50,6 @@ Thumbs.db
 # claude code / local agent state
 .claude/
 
-# tauri build output (Cargo target, generated schemas)
-/src-tauri/target/
-/src-tauri/gen/schemas/
-
 # logs
 *.log
 

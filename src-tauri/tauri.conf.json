@@ -1,0 +1,47 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "RedDash",
+  "version": "0.1.0",
+  "identifier": "redmine.dashboard",
+  "build": {
+    "frontendDist": "../out",
+    "devUrl": "http://localhost:9990",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "RedDash",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "Tieu Anh Quoc",
+    "homepage": "https://tieuanhquoc.info/",
+    "copyright": "© 2026 Tieu Anh Quoc",
+    "category": "Productivity",
+    "shortDescription": "Redmine time tracking dashboard",
+    "longDescription": "RedDash — log and visualize your Redmine time entries with an interactive calendar and team view. Credentials are stored locally in an encrypted Stronghold vault.",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
