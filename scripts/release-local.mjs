@@ -11,10 +11,10 @@
 // appended on subsequent runs.
 
 import { execSync } from 'node:child_process';
-import { readFileSync, existsSync, readdirSync, statSync, createHash } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeFileSync, mkdirSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -43,9 +43,34 @@ if (!process.env.TAURI_SIGNING_PRIVATE_KEY && !skipBuild) {
   process.exit(1);
 }
 
-// 1. Build (unless --skip-build)
+// 1. Build (unless --skip-build).
+// `--no-dmg` skips the DMG step (which needs Finder Automation permission on
+// macOS) and ships just the .app + .app.tar.gz that the updater needs.
+const noDmg = process.argv.includes('--no-dmg');
+const simpleDmg = process.argv.includes('--simple-dmg');
 if (!skipBuild) {
-  sh('npm run tauri:build');
+  if (process.platform === 'darwin' && (noDmg || simpleDmg)) {
+    // `app` bundle implicitly emits the updater .app.tar.gz + .sig when
+    // plugins.updater.pubkey is set in tauri.conf.json.
+    sh('npm run tauri:build -- --bundles app');
+  } else {
+    sh('npm run tauri:build');
+  }
+}
+
+// Optional: hand-roll a DMG via hdiutil — no AppleScript, no Finder needed.
+// Visually plain but functionally identical for users (drag .app to Applications).
+if (process.platform === 'darwin' && simpleDmg) {
+  const appDir = resolve(root, 'src-tauri', 'target', 'release', 'bundle', 'macos');
+  const apps = readdirSync(appDir).filter(f => f.endsWith('.app'));
+  if (apps.length) {
+    const appName = apps[0];
+    const dmgDir = resolve(root, 'src-tauri', 'target', 'release', 'bundle', 'dmg');
+    mkdirSync(dmgDir, { recursive: true });
+    const dmgPath = resolve(dmgDir, `RedDash_${version}_aarch64.dmg`);
+    if (existsSync(dmgPath)) execSync(`rm -f "${dmgPath}"`);
+    sh(`hdiutil create -volname RedDash -srcfolder "${resolve(appDir, appName)}" -ov -format UDZO "${dmgPath}"`);
+  }
 }
 
 // 2. Locate the produced bundles for THIS platform
@@ -68,8 +93,17 @@ function findFiles(subdir, suffixes) {
 
 const platform = process.platform;
 if (platform === 'darwin') {
-  add(...findFiles('dmg', ['.dmg']));
+  if (!noDmg) add(...findFiles('dmg', ['.dmg']));
   add(...findFiles('macos', ['.app.tar.gz', '.app.tar.gz.sig']));
+  // .app folder bundled as a tarball for users who don't want DMG drag-flow
+  const appDir = resolve(bundleDir, 'macos');
+  if (existsSync(appDir)) {
+    for (const f of readdirSync(appDir)) {
+      if (f.endsWith('.app')) {
+        // ship the tar.gz only — .app folder itself isn't a single uploadable file
+      }
+    }
+  }
 } else if (platform === 'win32') {
   add(...findFiles('msi', ['.msi', '.msi.sig']));
   add(...findFiles('nsis', ['-setup.exe', '-setup.exe.sig']));
@@ -80,7 +114,6 @@ if (platform === 'darwin') {
     const stagedDir = resolve(root, 'release');
     mkdirSync(stagedDir, { recursive: true });
     const portable = resolve(stagedDir, `RedDash-${version}-portable.exe`);
-    const { copyFileSync } = await import('node:fs');
     copyFileSync(resolve(releaseDir, exes[0]), portable);
     add(portable);
   }

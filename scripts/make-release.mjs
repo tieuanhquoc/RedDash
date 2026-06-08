@@ -72,7 +72,24 @@ if (linux) {
 
 if (Object.keys(platforms).length === 0) {
   console.error('No signed bundles found in', bundleDir);
-  console.error('Did you run `npm run tauri:build` with TAURI_SIGNING_PRIVATE_KEY set?');
+  console.error('Did you run `npm run tauri:build` with TAURI_SIGNING_PRIVATE_KEY set?\n');
+  const { statSync } = await import('node:fs');
+  if (existsSync(bundleDir)) {
+    console.error('Bundle dir tree:');
+    const visit = (dir, depth = 0) => {
+      if (depth > 3) return;
+      for (const f of readdirSync(dir)) {
+        const full = resolve(dir, f);
+        let isDir = false;
+        try { isDir = statSync(full).isDirectory(); } catch {}
+        console.error(' '.repeat(depth * 2) + (isDir ? '[D] ' : '    ') + f);
+        if (isDir) visit(full, depth + 1);
+      }
+    };
+    visit(bundleDir);
+  } else {
+    console.error('Bundle directory does not exist at all.');
+  }
   process.exit(1);
 }
 
