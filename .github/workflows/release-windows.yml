@@ -22,6 +22,12 @@ jobs:
     timeout-minutes: 60
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Sparse registry: ~80% faster cargo deps download (Rust 1.68+, default in 1.70+)
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+      CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+      # Skip Rust docs and avoid incremental compilation overhead on cold cache
+      CARGO_INCREMENTAL: '0'
+      RUST_BACKTRACE: short
 
     steps:
       - name: Checkout
@@ -40,6 +46,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          # Share cache across tag/branch builds — only invalidates on Cargo.lock change
+          shared-key: 'tauri-windows'
+          save-if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Install npm deps
         run: npm ci
