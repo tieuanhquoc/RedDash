@@ -39,3 +39,24 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editors / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# claude code / local agent state
+.claude/
+
+# tauri build output (Cargo target, generated schemas)
+/src-tauri/target/
+/src-tauri/gen/schemas/
+
+# logs
+*.log
+
+# local secrets / vault artifacts — must never live in repo
+*.hold
+salt.txt
