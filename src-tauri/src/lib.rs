@@ -97,6 +97,9 @@ pub fn run() {
                 .join("salt.txt");
             std::fs::create_dir_all(salt_path.parent().unwrap()).ok();
             app.handle().plugin(tauri_plugin_fs::init())?;
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle().plugin(tauri_plugin_dialog::init())?;
+            app.handle().plugin(tauri_plugin_process::init())?;
             app.handle().plugin(
                 tauri_plugin_stronghold::Builder::with_argon2(&salt_path).build(),
             )?;
@@ -124,8 +127,12 @@ pub fn run() {
                     .build(app)?;
                 let open_github = MenuItemBuilder::with_id("open_github", "GitHub Repository")
                     .build(app)?;
+                let check_update = MenuItemBuilder::with_id("check_update", "Kiểm tra cập nhật…")
+                    .build(app)?;
                 let help = SubmenuBuilder::new(app, "Help")
                     .item(&about_author)
+                    .item(&PredefinedMenuItem::separator(app)?)
+                    .item(&check_update)
                     .item(&PredefinedMenuItem::separator(app)?)
                     .item(&open_homepage)
                     .item(&open_github)
@@ -164,6 +171,7 @@ pub fn run() {
                     }
                     "open_homepage" => { let _ = open::that("https://tieuanhquoc.info/"); }
                     "open_github" => { let _ = open::that("https://github.com/tieuanhquoc/RedDash"); }
+                    "check_update" => { let _ = win.eval("window.__rdash_check_update__ && window.__rdash_check_update__(true)"); }
                     _ => {}
                 }
             }

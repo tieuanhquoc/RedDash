@@ -28,6 +28,9 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tauri-plugin-stronghold = "2"
 tauri-plugin-fs = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-process = "2"
 open = "5"
 
 # Optimize all dependencies even in dev mode — crypto (Argon2, ChaCha20)

@@ -20,12 +20,18 @@
     "start": "next start -p 9990",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "sync:version": "node scripts/sync-version.mjs",
+    "version": "node scripts/sync-version.mjs && git add src-tauri/Cargo.toml",
+    "release:manifest": "node scripts/make-release.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-fs": "^2.5.1",
+    "@tauri-apps/plugin-process": "^2",
     "@tauri-apps/plugin-stronghold": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2",
     "next": "16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4"

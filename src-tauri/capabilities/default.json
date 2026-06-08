@@ -8,6 +8,9 @@
   "permissions": [
     "core:default",
     "stronghold:default",
+    "updater:default",
+    "dialog:default",
+    "process:default",
     {
       "identifier": "fs:allow-exists",
       "allow": [{ "path": "$APPLOCALDATA/redmine-dashboard.hold" }]
