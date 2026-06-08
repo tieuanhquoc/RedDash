@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -75,11 +76,33 @@ if (Object.keys(platforms).length === 0) {
   process.exit(1);
 }
 
+// Merge with existing release's latest.json so platforms built on a different
+// runner (e.g. macOS local + Windows on Actions) all live in one manifest.
+let merged = { ...platforms };
+if (process.argv.includes('--merge')) {
+  try {
+    const existing = execSync(
+      `gh release view v${version} --json assets --jq '.assets[] | select(.name=="latest.json") | .url'`,
+      { stdio: ['ignore', 'pipe', 'ignore'] },
+    ).toString().trim();
+    if (existing) {
+      const json = execSync(`gh release download v${version} -p latest.json -O - 2>/dev/null`).toString();
+      const prev = JSON.parse(json);
+      if (prev?.platforms) {
+        merged = { ...prev.platforms, ...platforms };
+        console.log('Merged with existing platforms:', Object.keys(prev.platforms).join(', '));
+      }
+    }
+  } catch {
+    // No existing release or no latest.json yet — fall through with current-only platforms
+  }
+}
+
 const manifest = {
   version,
   notes,
   pub_date: new Date().toISOString(),
-  platforms,
+  platforms: merged,
 };
 
 const out = resolve(root, 'release');

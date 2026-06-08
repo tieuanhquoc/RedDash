@@ -1,6 +1,8 @@
 name: Release (Windows)
 
 on:
+  # Tag push (v*) auto-builds Windows installers + portable; macOS is built
+  # locally on the maintainer's machine via `npm run release:local`.
   push:
     tags:
       - 'v*'
@@ -88,9 +90,11 @@ jobs:
           cp "$RAW" "release/RedDash-${VERSION}-portable.exe"
           ls -lh release/
 
-      - name: Generate latest.json
+      - name: Generate latest.json (merging any macOS platforms already on the release)
         shell: bash
-        run: node scripts/make-release.mjs --notes "RedDash $(node -p \"require('./package.json').version\")"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/make-release.mjs --merge --notes "RedDash $(node -p \"require('./package.json').version\")"
 
       - name: Compute SHA256 checksums
         shell: bash
