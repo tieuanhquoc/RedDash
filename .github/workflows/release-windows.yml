@@ -94,7 +94,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/make-release.mjs --merge --notes "RedDash $(node -p \"require('./package.json').version\")"
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node scripts/make-release.mjs --merge --notes "RedDash ${VERSION}"
 
       - name: Compute SHA256 checksums
         shell: bash
