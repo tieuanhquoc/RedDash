@@ -139,6 +139,57 @@ Use the **Reset vault** button in Settings to wipe the vault and start fresh. Yo
 
 ---
 
+## Install
+
+Grab the installer for your OS from the [Releases page](https://github.com/tieuanhquoc/RedDash/releases).
+
+### Windows
+
+| File | What it is |
+|---|---|
+| `RedDash_x.x.x_x64-setup.exe` | **Recommended.** NSIS installer with auto-update. |
+| `RedDash_x.x.x_x64_en-US.msi` | MSI for IT / enterprise deployment. |
+| `RedDash-x.x.x-portable.exe` | Single binary, no install, **no auto-update**. |
+
+Run the installer normally. Windows SmartScreen may warn that the publisher is unverified — click **More info → Run anyway**.
+
+### macOS (Apple Silicon)
+
+RedDash is not notarized through the Apple Developer Program ($99/year), so Gatekeeper blocks the first launch. One-time bypass per install:
+
+**Option 1 — Right-click → Open (no Terminal needed):**
+
+1. Open the `.dmg` and drag `RedDash.app` to **Applications**.
+2. In Applications, **right-click `RedDash.app` → Open**.
+3. Confirm in the dialog → click **Open**. Double-click works normally from now on.
+
+**Option 2 — If macOS says the app is "damaged" or "cannot be opened":**
+
+This happens on Apple Silicon when the quarantine flag is set. Strip it:
+
+```bash
+xattr -d com.apple.quarantine /Applications/RedDash.app
+```
+
+Then double-click as usual.
+
+**Option 3 — System Settings:**
+
+1. Try to open the app → it gets blocked.
+2. **System Settings → Privacy & Security** → scroll to the bottom: "RedDash.app was blocked..." → click **Open Anyway**.
+
+### Verify your download (optional)
+
+```bash
+# SHA256 checksum
+sha256sum -c SHA256SUMS.txt
+
+# Build provenance — proves the binary was built from this repo on GitHub Actions
+gh attestation verify <file> --repo tieuanhquoc/RedDash
+```
+
+---
+
 ## Getting Started
 
 **Platform support:**
