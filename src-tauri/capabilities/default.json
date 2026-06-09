@@ -7,17 +7,35 @@
   ],
   "permissions": [
     "core:default",
-    "stronghold:default",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
     "updater:default",
     "dialog:default",
     "process:default",
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$APPLOCALDATA/redmine-dashboard.hold" }]
+      "allow": [
+        { "path": "$APPLOCALDATA/vault.json" },
+        { "path": "$APPLOCALDATA/redmine-dashboard.hold" }
+      ]
     },
     {
       "identifier": "fs:allow-remove",
-      "allow": [{ "path": "$APPLOCALDATA/redmine-dashboard.hold" }]
+      "allow": [
+        { "path": "$APPLOCALDATA/vault.json" },
+        { "path": "$APPLOCALDATA/redmine-dashboard.hold" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "$APPLOCALDATA/vault.json" }]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$APPLOCALDATA/vault.json" }]
     }
   ]
 }

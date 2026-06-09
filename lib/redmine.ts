@@ -5,6 +5,7 @@
 
 import type { RedmineUser, RedmineActivity, RedmineIssue, RedmineTimeEntry } from './types';
 import { secureGet, secureSet } from './storage';
+import { ApiError, friendlyMessage } from './api-error';
 
 type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 let _invokeCache: InvokeFn | null = null;
@@ -32,16 +33,29 @@ async function apiFetch<T>(
   const method = (init.method ?? 'GET').toUpperCase();
   const body = init.body ? JSON.parse(init.body as string) : null;
   const invoke = await getInvoke();
-  const resp = await invoke<{ status: number; body: unknown }>('redmine_request', {
-    args: {
-      method,
-      url: target.toString(),
-      apiToken: opts.apiToken,
-      body,
-    },
-  });
+
+  let resp: { status: number; body: unknown };
+  try {
+    resp = await invoke<{ status: number; body: unknown }>('redmine_request', {
+      args: { method, url: target.toString(), apiToken: opts.apiToken, body },
+    });
+  } catch (err) {
+    // The Rust command failed before we got any HTTP response — typically a
+    // DNS / TLS / network problem.
+    throw new ApiError({
+      status: 0,
+      message: friendlyMessage(0, null),
+      rawBody: err instanceof Error ? err.message : String(err),
+      isNetworkError: true,
+    });
+  }
+
   if (resp.status < 200 || resp.status >= 300) {
-    throw new Error(`HTTP ${resp.status}: ${JSON.stringify(resp.body)}`);
+    throw new ApiError({
+      status: resp.status,
+      rawBody: resp.body,
+      message: friendlyMessage(resp.status, resp.body),
+    });
   }
   return resp.body as T;
 }

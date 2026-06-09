@@ -59,3 +59,6 @@ Thumbs.db
 # local secrets / vault artifacts — must never live in repo
 *.hold
 salt.txt
+vault.json
+bio-key.b64
+*.entitlements.local

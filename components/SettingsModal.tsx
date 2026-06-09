@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { fetchCurrentUser, fetchActivities, fetchTimeEntries, fetchUsers } from '@/lib/redmine';
 import {
-  vaultExists, saveCredentials, loadCredentials, destroyVault,
+  vaultExists, vaultHasBio, saveCredentials, loadCredentials, loadCredentialsWithBioKey, destroyVault,
 } from '@/lib/vault';
+import { biometricAvailable, biometricUnlock } from '@/lib/biometric';
 
 const LS_FALLBACK_KEY = 'redmine_logger_cfg';
 
@@ -25,6 +26,8 @@ export default function SettingsModal() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [bioReady, setBioReady] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
 
   const isOpen = !state.currentUser;
 
@@ -33,6 +36,10 @@ export default function SettingsModal() {
     if (!isOpen) return;
     if (isTauri()) {
       vaultExists().then(setVaultReady).catch(() => setVaultReady(false));
+      (async () => {
+        const ok = (await biometricAvailable()) && (await vaultHasBio());
+        setBioReady(ok);
+      })();
     } else {
       // Browser mode: no vault, fall back to localStorage
       setVaultReady(false);
@@ -94,12 +101,28 @@ export default function SettingsModal() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Stronghold reports wrong password as a BadFileKey / age decryption error.
-      // Surface a friendly message instead of the raw crate-level string.
-      const isBadKey = /BadFileKey|decrypt age|failed to decode/i.test(msg);
-      setError(isBadKey ? 'Không xác thực bảo mật' : `Lỗi: ${msg}`);
+      const isBadKey = /BadPassword/i.test(msg);
+      setError(isBadKey ? 'Mật khẩu không đúng' : `Lỗi: ${msg}`);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleBiometricUnlock() {
+    setError('');
+    setBioBusy(true);
+    try {
+      const bioKey = await biometricUnlock();
+      const creds = await loadCredentialsWithBioKey(bioKey);
+      if (!creds) { setError('Vault rỗng hoặc lỗi đọc.'); return; }
+      await bootstrapSession({ redmineUrl: creds.url.replace(/\/$/, ''), apiToken: creds.token });
+      showToast('Mở khoá thành công!', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/cancel|user.*denied|user.*cancel/i.test(msg)) { setError(''); return; }
+      setError(`Sinh trắc học thất bại: ${msg}`);
+    } finally {
+      setBioBusy(false);
     }
   }
 
@@ -191,6 +214,25 @@ export default function SettingsModal() {
               </div>
             </div>
           </>
+        )}
+
+        {unlockMode && bioReady && (
+          <button
+            type="button"
+            className="btnSecondary"
+            onClick={handleBiometricUnlock}
+            disabled={bioBusy || loading}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: '.75rem' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/>
+              <path d="M5 19.5C5.5 18 6 15 6 12c0-3.3 2.7-6 6-6 1 0 2 .3 3 .8"/>
+              <path d="M12 10c-1.7 0-3 1.3-3 3 0 2.7-1.3 5-3 6"/>
+              <path d="M22 12c0 1-.5 2-1 3"/>
+              <path d="M15 13c0 4-1 6.5-2 8"/>
+            </svg>
+            {bioBusy ? 'Đang xác thực…' : 'Mở khoá bằng sinh trắc học'}
+          </button>
         )}
 
         {tauriMode && (

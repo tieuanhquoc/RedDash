@@ -22,16 +22,23 @@ tauri-build = { version = "2.6.2", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.11.2", features = [] }
+tauri = { version = "2.11.2", features = ["tray-icon"] }
 tauri-plugin-log = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-tauri-plugin-stronghold = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
 open = "5"
+
+# Biometric — Touch ID (macOS) / Windows Hello via robius-authentication +
+# OS credential store via the `keyring` crate.
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+base64 = "0.22"
+getrandom = "0.3"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+robius-authentication = "0.1"
 
 # Optimize all dependencies even in dev mode — crypto (Argon2, ChaCha20)
 # is ~50x slower without optimization. Own code stays opt-level=0 so

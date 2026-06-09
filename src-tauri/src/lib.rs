@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
+mod biometric;
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RedmineRequestArgs {
@@ -76,6 +78,13 @@ async fn redmine_request(args: RedmineRequestArgs) -> Result<RedmineResponse, St
     Ok(RedmineResponse { status, body })
 }
 
+struct TrayTotalItem(tauri::menu::MenuItem<tauri::Wry>);
+
+#[tauri::command]
+fn update_tray_total(state: tauri::State<'_, TrayTotalItem>, text: String) -> Result<(), String> {
+    state.0.set_text(&text).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
     let parsed = reqwest::Url::parse(&url).map_err(|e| format!("invalid url: {e}"))?;
@@ -89,20 +98,16 @@ fn open_url(url: String) -> Result<(), String> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .setup(|app| {
-            // Stronghold needs a persistent salt path for Argon2 key derivation.
-            let salt_path = app
+            // Ensure app local data dir exists (vault.json lives here).
+            let data_dir = app
                 .path()
                 .app_local_data_dir()
-                .expect("could not resolve app local data dir")
-                .join("salt.txt");
-            std::fs::create_dir_all(salt_path.parent().unwrap()).ok();
+                .expect("could not resolve app local data dir");
+            std::fs::create_dir_all(&data_dir).ok();
             app.handle().plugin(tauri_plugin_fs::init())?;
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_process::init())?;
-            app.handle().plugin(
-                tauri_plugin_stronghold::Builder::with_argon2(&salt_path).build(),
-            )?;
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
@@ -113,6 +118,64 @@ pub fn run() {
                     ])
                     .build(),
             )?;
+
+            // Menu bar tray icon — always visible. Left click opens menu
+            // (consistent across macOS / Windows / Linux).
+            {
+                use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem};
+                use tauri::tray::TrayIconBuilder;
+                use tauri::{Emitter, Manager};
+
+                // Top label shows today's total (updated from JS via the
+                // `update_tray_total` command). Disabled so it acts as a header.
+                let total_item = MenuItemBuilder::with_id("tray_total", "Hôm nay: —")
+                    .enabled(false)
+                    .build(app)?;
+                let quick_log = MenuItemBuilder::with_id("tray_quick_log", "Log time nhanh…").build(app)?;
+                let open_dash = MenuItemBuilder::with_id("tray_open_dash", "Mở dashboard").build(app)?;
+                let quit_item = MenuItemBuilder::with_id("tray_quit", "Đóng ứng dụng").build(app)?;
+                let tray_menu = Menu::with_items(
+                    app,
+                    &[
+                        &total_item,
+                        &PredefinedMenuItem::separator(app)?,
+                        &quick_log,
+                        &open_dash,
+                        &PredefinedMenuItem::separator(app)?,
+                        &quit_item,
+                    ],
+                )?;
+
+                app.manage(TrayTotalItem(total_item.clone()));
+
+                let _tray = TrayIconBuilder::with_id("main-tray")
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .icon_as_template(false)
+                    .tooltip("RedDash")
+                    .menu(&tray_menu)
+                    .show_menu_on_left_click(true)
+                    .on_menu_event(|app, event| match event.id().as_ref() {
+                        "tray_quick_log" => {
+                            if let Some(win) = app.get_webview_window("main") {
+                                let _ = win.show();
+                                let _ = win.unminimize();
+                                let _ = win.set_focus();
+                            }
+                            let _ = app.emit("tray://quick-log", ());
+                        }
+                        "tray_open_dash" => {
+                            if let Some(win) = app.get_webview_window("main") {
+                                let _ = win.show();
+                                let _ = win.unminimize();
+                                let _ = win.set_focus();
+                            }
+                            let _ = app.emit("tray://open-dashboard", ());
+                        }
+                        "tray_quit" => app.exit(0),
+                        _ => {}
+                    })
+                    .build(app)?;
+            }
 
             {
                 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
@@ -176,9 +239,31 @@ pub fn run() {
                 }
             }
         })
-        .invoke_handler(tauri::generate_handler![redmine_request, open_url]);
+        .invoke_handler(tauri::generate_handler![
+            redmine_request,
+            open_url,
+            update_tray_total,
+            biometric::biometric_available,
+            biometric::biometric_is_enabled,
+            biometric::biometric_enroll,
+            biometric::biometric_unlock,
+            biometric::biometric_get_key_silent,
+            biometric::biometric_disable,
+        ]);
 
     builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // macOS: dock click while all windows hidden → re-show main window.
+            // Triggered when "Chạy nền khi đóng cửa sổ" hid the window.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = &event {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
+            let _ = (app, event);
+        });
 }

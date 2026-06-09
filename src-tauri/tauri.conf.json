@@ -29,6 +29,9 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
+    "macOS": {
+      "entitlements": "tauri.app.entitlements"
+    },
     "windows": {
       "webviewInstallMode": { "type": "embedBootstrapper" }
     },

@@ -7,6 +7,7 @@ import BulkLogModal from './BulkLogModal';
 import StatsView from './StatsView';
 import TeamView from './TeamView';
 import FavoritesView from './FavoritesView';
+import SecurityView, { LS_AUTO_LOCK_MINUTES } from './SecurityView';
 import { useEffect } from 'react';
 import { fetchTimeEntries } from '@/lib/redmine';
 
@@ -103,12 +104,13 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
         </div>
         <button
           className="iconBtn"
-          onClick={() => dispatch({ type: 'LOGOUT' })}
-          title="Đăng xuất / đổi kết nối"
+          onClick={() => dispatch({ type: 'SET_VIEW', payload: 'security' })}
+          title="Cài đặt bảo mật"
+          style={state.view === 'security' ? { color: 'var(--accent, #6366F1)' } : undefined}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
       </div>
@@ -129,6 +131,135 @@ export function AppShell() {
     setBulkInitialIssue(issue ?? null);
     setBulkOpen(true);
   }
+
+  // Update tray menu's "Hôm nay" label whenever today's entries change.
+  useEffect(() => {
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const entries = state.timeEntries[todayKey] ?? [];
+    const totalHours = entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
+    const text = entries.length === 0
+      ? 'Hôm nay: chưa log'
+      : `Hôm nay: ${totalHours.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')}h`;
+    (async () => {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('update_tray_total', { text });
+      } catch { /* browser mode */ }
+    })();
+  }, [state.timeEntries, state.currentUser]);
+
+  // Tray menu events from Rust → JS actions.
+  useEffect(() => {
+    let unlistenQuickLog: (() => void) | null = null;
+    let unlistenDash: (() => void) | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const u1 = await listen('tray://quick-log', () => {
+          const n = new Date();
+          const ds = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+          openLog(ds);
+        });
+        const u2 = await listen('tray://open-dashboard', () => {
+          dispatch({ type: 'SET_VIEW', payload: 'calendar' });
+        });
+        if (cancelled) { u1(); u2(); }
+        else { unlistenQuickLog = u1; unlistenDash = u2; }
+      } catch { /* browser mode */ }
+    })();
+    return () => {
+      cancelled = true;
+      if (unlistenQuickLog) unlistenQuickLog();
+      if (unlistenDash) unlistenDash();
+    };
+  }, [dispatch]);
+
+  // Window close (X button) → always hide to background instead of quitting.
+  // Dock icon stays; click to reopen (handled in Rust via RunEvent::Reopen).
+  // To fully quit: Cmd+Q / app menu → Quit.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const win = await import('@tauri-apps/api/window').then(m => m.getCurrentWindow());
+        const un = await win.onCloseRequested(async (event) => {
+          event.preventDefault();
+          await win.hide();
+        });
+        if (cancelled) un(); else unlisten = un;
+      } catch { /* browser mode */ }
+    })();
+    return () => { cancelled = true; if (unlisten) unlisten(); };
+  }, []);
+
+  // Auto-lock — dispatch LOGOUT based on configured mode (Cài đặt → Bảo mật):
+  //   0   → off
+  //   -1  → lock when window loses focus (switch to another app)
+  //   -2  → lock when window hidden (minimize / hide)
+  //   >0  → lock after N minutes of inactivity
+  useEffect(() => {
+    if (!state.currentUser) return;
+
+    function readMode(): number {
+      try {
+        const raw = localStorage.getItem(LS_AUTO_LOCK_MINUTES);
+        const n = raw == null ? 0 : parseInt(raw, 10);
+        return Number.isFinite(n) ? n : 0;
+      } catch { return 0; }
+    }
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let mode = readMode();
+    let tauriUnlisten: (() => void) | null = null;
+    let cancelled = false;
+
+    function lockNow() { dispatch({ type: 'LOGOUT' }); }
+    function armIdleTimer() {
+      if (timer) clearTimeout(timer);
+      if (mode > 0) timer = setTimeout(lockNow, mode * 60 * 1000);
+    }
+    function onActivity() { if (mode > 0) armIdleTimer(); }
+    function onBlurDom() { if (mode === -1) lockNow(); }
+    function onVisibility() { if (mode === -2 && document.hidden) lockNow(); }
+    function onConfigChange(e: Event) {
+      const detail = (e as CustomEvent<number>).detail;
+      mode = Number.isFinite(detail) ? detail : 0;
+      armIdleTimer();
+    }
+
+    // Listen to native Tauri window focus event for reliable cross-app blur
+    // detection (DOM 'blur' can be flaky inside the webview).
+    (async () => {
+      try {
+        const win = await import('@tauri-apps/api/window').then(m => m.getCurrentWindow());
+        const un = await win.onFocusChanged(({ payload: focused }) => {
+          if (cancelled) return;
+          if (!focused && mode === -1) lockNow();
+        });
+        if (cancelled) un(); else tauriUnlisten = un;
+      } catch { /* browser mode — fall back to DOM 'blur' only */ }
+    })();
+
+    armIdleTimer();
+    const idleEvents: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel'];
+    idleEvents.forEach(ev => window.addEventListener(ev, onActivity, { passive: true }));
+    window.addEventListener('blur', onBlurDom);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('rdash:auto-lock-changed', onConfigChange as EventListener);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      if (tauriUnlisten) tauriUnlisten();
+      idleEvents.forEach(ev => window.removeEventListener(ev, onActivity));
+      window.removeEventListener('blur', onBlurDom);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('rdash:auto-lock-changed', onConfigChange as EventListener);
+    };
+  }, [state.currentUser, dispatch]);
 
   // ⌘L / Ctrl+L → open Log Time for today (only when viewing self)
   useEffect(() => {
@@ -166,6 +297,7 @@ export function AppShell() {
         {state.view === 'stats' && <StatsView />}
         {state.view === 'team' && <TeamView />}
         {state.view === 'favorites' && <FavoritesView onLog={openLog} />}
+        {state.view === 'security' && <SecurityView />}
       </main>
       <BulkLogModal
         isOpen={bulkOpen}

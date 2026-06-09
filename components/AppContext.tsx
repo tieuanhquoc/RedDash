@@ -14,7 +14,7 @@ export interface AppState {
   year: number;
   month: number;   // 1-based
   loading: boolean;
-  view: 'calendar' | 'stats' | 'team' | 'favorites';
+  view: 'calendar' | 'stats' | 'team' | 'favorites' | 'security';
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
 }
 
@@ -46,7 +46,7 @@ type Action =
   | { type: 'REMOVE_TIME_ENTRY'; payload: { date: string; entryId: number } }
   | { type: 'SET_YEAR_MONTH';   payload: { year: number; month: number } }
   | { type: 'SET_LOADING';      payload: boolean }
-  | { type: 'SET_VIEW';         payload: 'calendar' | 'stats' | 'team' | 'favorites' }
+  | { type: 'SET_VIEW';         payload: 'calendar' | 'stats' | 'team' | 'favorites' | 'security' }
   | { type: 'SET_TOAST';        payload: AppState['toast'] }
   | { type: 'LOGOUT' };
 
