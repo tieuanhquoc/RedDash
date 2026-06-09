@@ -6,6 +6,7 @@ import {
   getFavorites, toggleFavorite, FAVORITES_MAX, type FavoriteIssue,
 } from '@/lib/favorites';
 import IssueSearchInput, { type IssueOption } from './IssueSearchInput';
+import { useT } from '@/lib/i18n';
 
 interface FavoritesViewProps {
   /** Open Log Time modal — optionally with date pre-selected & issue pre-filled. */
@@ -13,6 +14,7 @@ interface FavoritesViewProps {
 }
 
 export default function FavoritesView({ onLog }: FavoritesViewProps) {
+  const t = useT();
   const { state, showToast } = useApp();
   const [favorites, setFavorites] = useState<FavoriteIssue[]>([]);
   const [search, setSearch] = useState('');
@@ -24,12 +26,12 @@ export default function FavoritesView({ onLog }: FavoritesViewProps) {
   function addFavorite(issue: IssueOption) {
     if (!state.currentUser || !state.config) return;
     if (favorites.length >= FAVORITES_MAX && !favorites.some(f => f.id === issue.id)) {
-      showToast(`Đã đạt giới hạn ${FAVORITES_MAX} pin. Xoá bớt trước khi thêm.`, 'error');
+      showToast(t('favorites.limitToast', { max: FAVORITES_MAX }), 'error');
       return;
     }
     toggleFavorite(state.config.redmineUrl, state.currentUser.id, issue).then(setFavorites);
     setSearch('');
-    showToast(`Đã pin #${issue.id}`, 'success');
+    showToast(t('favorites.pinnedToast', { id: issue.id }), 'success');
   }
 
   function removeFavorite(issue: FavoriteIssue) {
@@ -41,7 +43,7 @@ export default function FavoritesView({ onLog }: FavoritesViewProps) {
     <div className="viewPane">
       <div className="viewHeader">
         <div className="headerLeft">
-          <h1 className="viewTitle">⭐ Pin</h1>
+          <h1 className="viewTitle">{t('favorites.title')}</h1>
           <span style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>
             {favorites.length} / {FAVORITES_MAX}
           </span>
@@ -49,7 +51,7 @@ export default function FavoritesView({ onLog }: FavoritesViewProps) {
       </div>
 
       <div className="fieldGroup" style={{ marginBottom: '1rem' }}>
-        <label className="fieldLabel">Thêm issue vào Pin</label>
+        <label className="fieldLabel">{t('favorites.addLabel')}</label>
         <IssueSearchInput
           value={search}
           onChange={(text) => setSearch(text)}
@@ -59,7 +61,7 @@ export default function FavoritesView({ onLog }: FavoritesViewProps) {
             toggleFavorite(state.config.redmineUrl, state.currentUser.id, issue).then(setFavorites);
           }}
           favorites={favorites}
-          placeholder="Gõ ID (vd: 9517) hoặc tên issue…"
+          placeholder={t('favorites.addPlaceholder')}
         />
       </div>
 
@@ -69,9 +71,9 @@ export default function FavoritesView({ onLog }: FavoritesViewProps) {
           background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-xl)',
         }}>
           <div style={{ fontSize: '2rem', marginBottom: '.5rem' }}>📌</div>
-          <p style={{ marginBottom: '.4rem' }}>Chưa có issue nào được pin.</p>
+          <p style={{ marginBottom: '.4rem' }}>{t('favorites.emptyText')}</p>
           <p style={{ fontSize: '.82rem' }}>
-            Pin issue thường dùng để log nhanh — tối đa {FAVORITES_MAX} issue.
+            {t('favorites.emptyDesc', { max: FAVORITES_MAX })}
           </p>
         </div>
       ) : (
@@ -90,20 +92,20 @@ export default function FavoritesView({ onLog }: FavoritesViewProps) {
                 type="button"
                 className="favLogBtn"
                 onClick={() => onLog(null, { id: f.id, subject: f.subject })}
-                title="Log Time với issue này"
+                title={t('favorites.logTimeTitle')}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="12" y1="5" x2="12" y2="19"/>
                   <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
-                Log
+                {t('common.log')}
               </button>
               <button
                 type="button"
                 className="favRemoveBtn"
                 onClick={() => removeFavorite(f)}
-                title="Xoá khỏi pin"
-                aria-label="Xoá"
+                title={t('favorites.unpinTitle')}
+                aria-label={t('common.delete')}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

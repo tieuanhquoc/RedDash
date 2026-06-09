@@ -8,6 +8,7 @@ import {
   biometricAvailable, biometricEnroll, biometricDisable,
 } from '@/lib/biometric';
 import { openExternal } from '@/lib/open-url';
+import { useI18n, AVAILABLE_LOCALES } from '@/lib/i18n';
 
 // ─── reusable bits ───────────────────────────────────────────────────────────
 
@@ -103,22 +104,23 @@ function Row({
 
 export const LS_AUTO_LOCK_MINUTES = 'app.autoLockMinutes';
 
-const AUTO_LOCK_OPTIONS = [
-  { value: 0, label: 'Tắt' },
-  { value: -1, label: 'Khoá ngay khi chuyển ứng dụng' },
-  { value: -2, label: 'Khoá ngay khi ẩn' },
-  { value: 1, label: '1 phút' },
-  { value: 5, label: '5 phút' },
-  { value: 15, label: '15 phút' },
-  { value: 30, label: '30 phút' },
-  { value: 60, label: '1 giờ' },
-];
-
 export default function SecurityView() {
   const { state, dispatch, showToast } = useApp();
+  const { locale, setLocale, t } = useI18n();
   const [appVersion, setAppVersion] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
+
+  const autoLockOptions = [
+    { value: 0, label: t('settings.security.autoLockOff') },
+    { value: -1, label: t('settings.security.autoLockOnBlur') },
+    { value: -2, label: t('settings.security.autoLockOnHide') },
+    { value: 1, label: t('settings.security.autoLockMinutes', { n: 1 }) },
+    { value: 5, label: t('settings.security.autoLockMinutes', { n: 5 }) },
+    { value: 15, label: t('settings.security.autoLockMinutes', { n: 15 }) },
+    { value: 30, label: t('settings.security.autoLockMinutes', { n: 30 }) },
+    { value: 60, label: t('settings.security.autoLockHour', { n: 1 }) },
+  ];
 
   async function handleResetAll() {
     setResetBusy(true);
@@ -129,10 +131,10 @@ export default function SecurityView() {
         localStorage.removeItem('app.autoLockMinutes');
         localStorage.removeItem('redmine_logger_cfg');
       } catch { /* */ }
-      showToast('Đã xoá toàn bộ cài đặt. Khởi động lại cấu hình từ đầu.', 'info');
+      showToast(t('settings.reset.toast'), 'info');
       dispatch({ type: 'LOGOUT' });
     } catch (err: unknown) {
-      showToast(`Lỗi: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('common.errorMsg', { msg: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setResetBusy(false);
       setConfirmReset(false);
@@ -163,11 +165,11 @@ export default function SecurityView() {
     setAutoLockMin(min);
     try { localStorage.setItem(LS_AUTO_LOCK_MINUTES, String(min)); } catch { /* */ }
     window.dispatchEvent(new CustomEvent('rdash:auto-lock-changed', { detail: min }));
-    const label = AUTO_LOCK_OPTIONS.find(o => o.value === min)?.label;
+    const label = autoLockOptions.find(o => o.value === min)?.label;
     showToast(
-      min === 0 ? 'Đã tắt tự động khoá'
-        : min < 0 ? `Đã bật: ${label}`
-        : `Tự động khoá sau ${label} không thao tác`,
+      min === 0 ? t('settings.security.autoLockToastOff')
+        : min < 0 ? t('settings.security.autoLockToastEvent', { label: label ?? '' })
+        : t('settings.security.autoLockToastOn', { label: label ?? '' }),
       'info',
     );
   }
@@ -194,17 +196,17 @@ export default function SecurityView() {
     setError(''); setBusy(true);
     try {
       const creds = await loadCredentials(password);
-      if (!creds) { setError('Vault rỗng hoặc lỗi đọc.'); return; }
+      if (!creds) { setError(t('unlock.errVaultEmpty')); return; }
       const bioKey = await biometricEnroll();
       await enrollBiometricBlob(password, bioKey);
       setEnabled(true); setShowForm(false); setPassword('');
-      showToast('Đã bật mở khoá bằng sinh trắc học', 'success');
+      showToast(t('settings.security.bioToastOn'), 'success');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/cancel|user.*denied/i.test(msg)) { setError(''); return; }
       const isBadKey = /BadPassword/i.test(msg);
-      setError(isBadKey ? 'Mật khẩu không đúng' : `Lỗi: ${msg}`);
-    } finally { setBusy(false); }
+      setError(isBadKey ? t('unlock.wrongPassword') : t('common.errorMsg', { msg }));
+    } finally { vanity_workaround: setBusy(false); }
   }
 
   async function handleDisable() {
@@ -213,9 +215,9 @@ export default function SecurityView() {
       await biometricDisable();
       await removeBiometricBlob();
       setEnabled(false);
-      showToast('Đã tắt mở khoá bằng sinh trắc học', 'info');
+      showToast(t('settings.security.bioToastOff'), 'info');
     } catch (err: unknown) {
-      showToast(`Lỗi: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      showToast(t('common.errorMsg', { msg: err instanceof Error ? err.message : String(err) }), 'error');
     } finally { setBusy(false); }
   }
 
@@ -235,13 +237,13 @@ export default function SecurityView() {
         flexDirection: 'column',
         flex: 1,
       }}>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 600, marginBottom: '.25rem' }}>Cài đặt</h1>
+      <h1 style={{ fontSize: '1.4rem', fontWeight: 600, marginBottom: '.25rem' }}>{t('settings.title')}</h1>
       <p style={{ color: 'var(--text-muted)', fontSize: '.88rem', marginBottom: '1.5rem' }}>
-        Tùy chỉnh hành vi và bảo mật của ứng dụng.
+        {t('settings.subtitle')}
       </p>
 
       {/* ─── Tài khoản ──────────────────────────────────────────────────── */}
-      <Section title="Tài khoản">
+      <Section title={t('settings.account.section')}>
         <Row
           icon={
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -250,7 +252,7 @@ export default function SecurityView() {
             </svg>
           }
           iconBg="rgba(20,184,166,.12)" iconColor="#0D9488"
-          title={`${userName || 'Chưa đăng nhập'}${u?.mail ? ` — ${u.mail}` : ''}`}
+          title={`${userName || t('settings.account.notLoggedIn')}${u?.mail ? ` — ${u.mail}` : ''}`}
           description={
             <span style={{ wordBreak: 'break-all', fontFamily: 'ui-monospace, monospace', fontSize: '.78rem' }}>
               {redmineUrl || '—'}
@@ -261,7 +263,7 @@ export default function SecurityView() {
               type="button"
               className="btnSecondary"
               onClick={() => dispatch({ type: 'LOGOUT' })}
-              title="Đăng xuất / đổi kết nối"
+              title={t('settings.account.logoutTitle')}
               style={{
                 fontSize: '.82rem', padding: '.4rem .8rem',
                 display: 'flex', alignItems: 'center', gap: 6,
@@ -272,14 +274,38 @@ export default function SecurityView() {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Đăng xuất
+              {t('settings.account.logoutBtn')}
             </button>
           }
         />
       </Section>
 
+      {/* ─── Ngôn ngữ ─────────────────────────────────────────────────── */}
+      <Section title={t('settings.language.section')}>
+        <Row
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+          }
+          iconBg="rgba(59,130,246,.12)" iconColor="#3B82F6"
+          title={t('settings.language.title')}
+          description={t('settings.language.desc')}
+          right={
+            <Select
+              options={AVAILABLE_LOCALES.map(l => ({ value: l.code, label: `${l.flag}  ${l.label}` }))}
+              value={locale}
+              onChange={setLocale}
+              pillStyle={{ minWidth: 140 }}
+            />
+          }
+        />
+      </Section>
+
       {/* ─── Bảo mật ────────────────────────────────────────────────────── */}
-      <Section title="Bảo mật">
+      <Section title={t('settings.security.section')}>
         <Row
           icon={
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -288,11 +314,11 @@ export default function SecurityView() {
             </svg>
           }
           iconBg="rgba(99,102,241,.12)" iconColor="#6366F1"
-          title="Tự động khoá"
-          description="Khoá app khi không có thao tác trong khoảng thời gian đã chọn"
+          title={t('settings.security.autoLockTitle')}
+          description={t('settings.security.autoLockDesc')}
           right={
             <Select
-              options={AUTO_LOCK_OPTIONS}
+              options={autoLockOptions}
               value={autoLockMin}
               onChange={changeAutoLock}
               pillStyle={{ minWidth: 120 }}
@@ -311,11 +337,11 @@ export default function SecurityView() {
             </svg>
           }
           iconBg="rgba(99,102,241,.12)" iconColor="#6366F1"
-          title="Mở khoá bằng sinh trắc học"
+          title={t('settings.security.bioTitle')}
           description={
-            available === null ? 'Đang kiểm tra…'
-              : available === false ? 'Không khả dụng trên hệ điều hành này'
-                : 'Dùng Touch ID / Windows Hello để mở khoá vault không cần nhập mật khẩu'
+            available === null ? t('settings.security.bioChecking')
+              : available === false ? t('settings.security.bioUnavailable')
+                : t('settings.security.bioDesc')
           }
           right={available ? (
             <Toggle
@@ -325,19 +351,19 @@ export default function SecurityView() {
                 if (enabled) handleDisable();
                 else { setError(''); setShowForm(v => !v); }
               }}
-              title={enabled ? 'Đang bật — nhấn để tắt' : (showForm ? 'Nhấn để thu gọn' : 'Nhấn để bật')}
+              title={enabled ? t('settings.security.bioToggleOnTooltip') : (showForm ? t('settings.security.bioToggleFormOpenTooltip') : t('settings.security.bioToggleFormClosedTooltip'))}
             />
           ) : null}
           expanded={
             <>
               {available && !enabled && showForm && (
                 <form onSubmit={handleEnable} style={{ marginTop: 14 }}>
-                  <label className="fieldLabel" htmlFor="bio-pwd">Nhập mật khẩu vault để xác nhận</label>
+                  <label className="fieldLabel" htmlFor="bio-pwd">{t('settings.security.bioConfirmLabel')}</label>
                   <div className="inputWithIcon" style={{ marginTop: 4 }}>
                     <input
                       id="bio-pwd" className="fieldInput" required autoFocus
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="Mật khẩu vault hiện tại"
+                      placeholder={t('settings.security.bioConfirmPlaceholder')}
                       value={password} onChange={e => setPassword(e.target.value)}
                       autoComplete="off"
                     />
@@ -350,7 +376,7 @@ export default function SecurityView() {
                   {error && <div className="errorBanner" style={{ marginTop: 10 }}>{error}</div>}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
                     <button type="submit" className="btnPrimary" disabled={busy} style={{ fontSize: '.85rem' }}>
-                      {busy ? 'Đang xác thực…' : 'Xác nhận & xác thực sinh trắc học'}
+                      {busy ? t('settings.security.bioConfirmLoading') : t('settings.security.bioConfirmBtn')}
                     </button>
                   </div>
                 </form>
@@ -374,7 +400,7 @@ export default function SecurityView() {
           {appVersion && <span> · v{appVersion}</span>}
         </div>
         <div>
-          Tác giả{' '}
+          {t('settings.about.author')}{' '}
           <a
             href="https://tieuanhquoc.info/"
             onClick={(e) => { e.preventDefault(); void openExternal('https://tieuanhquoc.info/'); }}
@@ -394,7 +420,7 @@ export default function SecurityView() {
         <div style={{ marginTop: 10 }}>
           {confirmReset ? (
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-              <span style={{ color: 'var(--red, #E03E3E)' }}>Xoá toàn bộ cài đặt?</span>
+              <span style={{ color: 'var(--red, #E03E3E)' }}>{t('settings.reset.confirmText')}</span>
               <button
                 type="button"
                 onClick={() => setConfirmReset(false)}
@@ -405,7 +431,7 @@ export default function SecurityView() {
                   background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer',
                 }}
               >
-                Huỷ
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -417,21 +443,21 @@ export default function SecurityView() {
                   background: 'var(--red, #E03E3E)', color: '#fff', cursor: 'pointer',
                 }}
               >
-                {resetBusy ? 'Đang xoá…' : 'Xác nhận'}
+                {resetBusy ? t('settings.reset.loading') : t('settings.reset.confirmBtn')}
               </button>
             </span>
           ) : (
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              title="Xoá vault + tắt biometric + reset tuỳ chọn"
+              title={t('settings.reset.title')}
               style={{
                 fontSize: '.65rem', padding: 0,
                 border: 'none', background: 'transparent',
                 color: 'var(--red, #E03E3E)', opacity: 0.55, cursor: 'pointer',
               }}
             >
-              Xoá toàn bộ cài đặt
+              {t('settings.reset.btn')}
             </button>
           )}
         </div>

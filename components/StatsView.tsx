@@ -5,6 +5,7 @@ import { useApp } from './AppContext';
 import { fetchTimeEntries } from '@/lib/redmine';
 import type { RedmineTimeEntry } from '@/lib/types';
 import PieChart from './PieChart';
+import { useT, useI18n } from '@/lib/i18n';
 
 type Period = 'month' | 'quarter' | 'half' | 'year' | 'custom';
 
@@ -49,18 +50,18 @@ function BarCard({ title, rows, color }: BarCardProps) {
   );
 }
 
-function resolveRange(period: Period, anchorYear: number, anchorMonth: number, customFrom: string, customTo: string): { from: string; to: string; label: string } {
+function resolveRange(period: Period, anchorYear: number, anchorMonth: number, customFrom: string, customTo: string, t: any, locale: string): { from: string; to: string; label: string } {
   if (period === 'custom') {
     return { from: customFrom, to: customTo, label: `${customFrom} → ${customTo}` };
   }
   if (period === 'year') {
-    return { from: `${anchorYear}-01-01`, to: `${anchorYear}-12-31`, label: `Năm ${anchorYear}` };
+    return { from: `${anchorYear}-01-01`, to: `${anchorYear}-12-31`, label: t('stats.yearLabel', { year: anchorYear }) };
   }
   if (period === 'half') {
     if (anchorMonth <= 6) {
-      return { from: `${anchorYear}-01-01`, to: `${anchorYear}-06-30`, label: `Nửa đầu ${anchorYear} (T1–T6)` };
+      return { from: `${anchorYear}-01-01`, to: `${anchorYear}-06-30`, label: t('stats.halfFirstLabel', { year: anchorYear }) };
     }
-    return { from: `${anchorYear}-07-01`, to: `${anchorYear}-12-31`, label: `Nửa cuối ${anchorYear} (T7–T12)` };
+    return { from: `${anchorYear}-07-01`, to: `${anchorYear}-12-31`, label: t('stats.halfSecondLabel', { year: anchorYear }) };
   }
   if (period === 'quarter') {
     const q = Math.floor((anchorMonth - 1) / 3) + 1; // 1..4
@@ -70,7 +71,7 @@ function resolveRange(period: Period, anchorYear: number, anchorMonth: number, c
     return {
       from: padDate(anchorYear, m1, 1),
       to: padDate(anchorYear, m2, lastDay),
-      label: `Q${q} ${anchorYear} (T${m1}–T${m2})`,
+      label: t('stats.quarterLabel', { q, year: anchorYear, m1, m2 }),
     };
   }
   // month
@@ -78,12 +79,14 @@ function resolveRange(period: Period, anchorYear: number, anchorMonth: number, c
   return {
     from: padDate(anchorYear, anchorMonth, 1),
     to: padDate(anchorYear, anchorMonth, lastDay),
-    label: new Date(anchorYear, anchorMonth - 1, 1).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' }),
+    label: new Date(anchorYear, anchorMonth - 1, 1).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'long', year: 'numeric' }),
   };
 }
 
 export default function StatsView() {
   const { state, dispatch, showToast } = useApp();
+  const t = useT();
+  const { locale } = useI18n();
   const { config, currentUser, viewUserId } = state;
   const effectiveUserId = viewUserId ?? currentUser?.id ?? null;
 
@@ -95,7 +98,7 @@ export default function StatsView() {
   const [entries, setEntries] = useState<RedmineTimeEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { from, to, label } = resolveRange(period, anchorYear, anchorMonth, customFrom, customTo);
+  const { from, to, label } = resolveRange(period, anchorYear, anchorMonth, customFrom, customTo, t, locale);
 
   // Fetch on range/user change
   useEffect(() => {
@@ -110,7 +113,7 @@ export default function StatsView() {
         // Also push to global state for DetailModal use
         dispatch({ type: 'SET_TIME_ENTRIES', payload: data });
       } catch (err: unknown) {
-        if (!cancelled) showToast('Lỗi tải dữ liệu: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        if (!cancelled) showToast(t('stats.loadError', { msg: err instanceof Error ? err.message : String(err) }), 'error');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -170,15 +173,15 @@ export default function StatsView() {
     <div className="viewPane">
       <div className="viewHeader">
         <div className="headerLeft">
-          <h1 className="viewTitle">Thống kê</h1>
+          <h1 className="viewTitle">{t('stats.title')}</h1>
           <div className="monthNav">
             {period !== 'custom' && (
               <>
-                <button className="navBtn" onClick={() => navigateAnchor(-1)} aria-label="Trước">
+                <button className="navBtn" onClick={() => navigateAnchor(-1)} aria-label={t('common.prev')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
                 <span className="monthLabel" style={{ minWidth: 220 }}>{label}</span>
-                <button className="navBtn" onClick={() => navigateAnchor(1)} aria-label="Sau">
+                <button className="navBtn" onClick={() => navigateAnchor(1)} aria-label={t('common.next')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
               </>
@@ -196,7 +199,7 @@ export default function StatsView() {
                 onClick={() => setPeriod(p)}
                 style={period === p ? { background: 'var(--accent-glow)', color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
               >
-                {p === 'month' ? 'Tháng' : p === 'quarter' ? 'Quý' : p === 'half' ? 'Nửa năm' : p === 'year' ? 'Năm' : 'Tuỳ chọn'}
+                {p === 'month' ? t('stats.periodMonth') : p === 'quarter' ? t('stats.periodQuarter') : p === 'half' ? t('stats.periodHalf') : p === 'year' ? t('stats.periodYear') : t('stats.periodCustom')}
               </button>
             ))}
           </div>
@@ -215,25 +218,25 @@ export default function StatsView() {
               setCustomFrom(padDate(curY, curM, 1));
               setCustomTo(padDate(curY, curM, lastDay));
             }}
-          >Hôm nay</button>
+          >{t('common.today')}</button>
         </div>
       </div>
 
       <div className="summaryStrip">
         <div className="summaryCard">
-          <span className="summaryLabel">Tổng giờ</span>
+          <span className="summaryLabel">{t('stats.totalHours')}</span>
           <span className="summaryVal">{fmtH(totalH)}h</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Ngày có log</span>
+          <span className="summaryLabel">{t('stats.loggedDays')}</span>
           <span className="summaryVal">{daysLogged}</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Ngày đủ 8h</span>
+          <span className="summaryLabel">{t('stats.fullDays')}</span>
           <span className="summaryVal">{fullDays}</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">TB / ngày log</span>
+          <span className="summaryLabel">{t('stats.averagePerDay')}</span>
           <span className="summaryVal">{daysLogged > 0 ? fmtH(totalH / daysLogged) : '--'}h</span>
         </div>
       </div>
@@ -241,38 +244,38 @@ export default function StatsView() {
       {loading ? (
         <div className="loadingState">
           <div className="loadingSpinner" />
-          <p>Đang tải dữ liệu…</p>
+          <p>{t('stats.loading')}</p>
         </div>
       ) : allEntries.length === 0 ? (
         <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>
-          Không có dữ liệu trong khoảng này.
+          {t('stats.noData')}
         </p>
       ) : (
         <div className="statsGrid">
           <PieChart
-            title="Tỉ lệ giờ theo Issue"
+            title={t('stats.chartByIssue')}
             rows={buildBarData(allEntries, e => e.issue ? `#${e.issue.id} ${e.issue.name ?? ''}`.trim() : 'No issue')}
           />
           <PieChart
-            title="Tỉ lệ giờ theo Project"
+            title={t('stats.chartByProject')}
             rows={buildBarData(allEntries, e => e.project?.name ?? 'Unknown')}
           />
           <PieChart
-            title="Tỉ lệ giờ theo Activity"
+            title={t('stats.chartByActivity')}
             rows={buildBarData(allEntries, e => e.activity?.name ?? 'Unknown')}
           />
           <BarCard
-            title="Theo Issue"
+            title={t('stats.cardByIssue')}
             rows={buildBarData(allEntries, e => e.issue ? `#${e.issue.id} ${e.issue.name ?? ''}`.trim() : 'No issue')}
             color="var(--accent)"
           />
           <BarCard
-            title="Theo Activity"
+            title={t('stats.cardByActivity')}
             rows={buildBarData(allEntries, e => e.activity?.name ?? 'Unknown')}
             color="var(--green)"
           />
           <BarCard
-            title="Theo Project"
+            title={t('stats.cardByProject')}
             rows={buildBarData(allEntries, e => e.project?.name ?? 'Unknown')}
             color="var(--blue)"
           />

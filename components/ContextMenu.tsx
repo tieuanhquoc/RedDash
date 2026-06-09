@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useApp } from './AppContext';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   x: number;
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export default function ContextMenu({ x, y, hasEntries, canLog = true, onLog, onView, onClose }: Props) {
+  const t = useT();
+
   // Clamp to viewport
   const itemCount = (canLog ? 1 : 0) + (hasEntries ? 1 : 0);
   const mw = 180, mh = Math.max(44, itemCount * 44);
@@ -38,7 +41,7 @@ export default function ContextMenu({ x, y, hasEntries, canLog = true, onLog, on
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            Log thời gian
+            {t('calendar.ctxLogTime')}
           </button>
         )}
         {hasEntries && (
@@ -47,7 +50,7 @@ export default function ContextMenu({ x, y, hasEntries, canLog = true, onLog, on
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            Xem chi tiết
+            {t('calendar.ctxViewDetails')}
           </button>
         )}
       </div>

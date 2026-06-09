@@ -8,6 +8,7 @@ import { openExternal } from '@/lib/open-url';
 import DetailModal from './DetailModal';
 import ContextMenu from './ContextMenu';
 import UserPicker from './UserPicker';
+import { useI18n } from '@/lib/i18n';
 
 function fmtHours(h: number | string) {
   const v = parseFloat(String(h) || '0');
@@ -33,6 +34,7 @@ interface CalendarViewProps {
 
 export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
   const { state, dispatch, showToast } = useApp();
+  const { locale, t } = useI18n();
   const { year, month, timeEntries, loading, config, currentUser, users, viewUserId } = state;
   const effectiveUserId = viewUserId ?? currentUser?.id ?? null;
   const isViewingSelf = effectiveUserId === currentUser?.id;
@@ -62,11 +64,11 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
       const entries = await fetchTimeEntries(config, effectiveUserId, from, to);
       dispatch({ type: 'SET_TIME_ENTRIES', payload: entries });
     } catch (err: unknown) {
-      showToast('Lỗi tải dữ liệu: ' + (err instanceof Error ? err.message : String(err)), 'error');
+      showToast(t('calendar.loadError', { msg: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [config, effectiveUserId, year, month, dispatch, showToast]);
+  }, [config, effectiveUserId, year, month, dispatch, showToast, t]);
 
   // Reload only a specific set of dates — used after bulk log to avoid full month reload.
   const reloadDates = useCallback(async (dates: string[]) => {
@@ -172,9 +174,10 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
   }, [snoozeKey]);
   const showMissingBanner = (emptyDays.length > 0 || incompleteDays.length > 0) && !isSnoozed;
 
-  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('vi-VN', {
-    month: 'long', year: 'numeric',
-  });
+  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString(
+    locale === 'vi' ? 'vi-VN' : 'en-US',
+    { month: 'long', year: 'numeric' }
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -182,9 +185,9 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
       {/* ── Header ── */}
       <div className="viewHeader">
         <div className="headerLeft">
-          <h1 className="viewTitle">Lịch Spent Time</h1>
+          <h1 className="viewTitle">{t('calendar.title')}</h1>
           <div className="monthNav">
-            <button className="navBtn" onClick={() => go(-1)} aria-label="Tháng trước">
+            <button className="navBtn" onClick={() => go(-1)} aria-label={t('calendar.prevMonth')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
@@ -193,7 +196,7 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
             <button
               className="navBtn"
               onClick={() => go(1)}
-              aria-label="Tháng sau"
+              aria-label={t('calendar.nextMonth')}
               disabled={isCurrentMonth || isFuture}
               style={(isCurrentMonth || isFuture) ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
             >
@@ -221,13 +224,18 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
               if (year > curY || (year === curY && m > curM)) return;
               dispatch({ type: 'SET_YEAR_MONTH', payload: { year, month: m } });
             }}
-            aria-label="Chọn tháng"
+            aria-label={t('calendar.selectMonth')}
           >
             {Array.from({ length: 12 }, (_, i) => {
               const m = i + 1;
               const disabled = year === curY && m > curM;
               return (
-                <option key={m} value={m} disabled={disabled}>Tháng {m}</option>
+                <option key={m} value={m} disabled={disabled}>
+                  {(() => {
+                    const name = new Date(2000, m - 1, 1).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'long' });
+                    return name.charAt(0).toUpperCase() + name.slice(1);
+                  })()}
+                </option>
               );
             })}
           </select>
@@ -241,7 +249,7 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
               const newMonth = (v === curY && month > curM) ? curM : month;
               dispatch({ type: 'SET_YEAR_MONTH', payload: { year: v, month: newMonth } });
             }}
-            aria-label="Chọn năm"
+            aria-label={t('calendar.selectYear')}
           />
           <button
             className="btnToday"
@@ -250,13 +258,13 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
               dispatch({ type: 'SET_YEAR_MONTH', payload: { year: now.getFullYear(), month: now.getMonth() + 1 } });
             }}
           >
-            Hôm nay
+            {t('calendar.todayBtn')}
           </button>
           <button
             className="btnRefresh"
             onClick={() => setShowAllEntries(v => !v)}
-            title={showAllEntries ? 'Thu gọn (hiện tối đa 2 entries/ngày)' : 'Mở rộng (hiện tất cả entries)'}
-            aria-label="Toggle hiện toàn bộ entries"
+            title={showAllEntries ? t('calendar.collapseTooltip') : t('calendar.expandTooltip')}
+            aria-label={t('calendar.toggleExpandAria')}
             style={showAllEntries ? { background: 'var(--accent-glow)', color: 'var(--accent)' } : undefined}
           >
             {showAllEntries ? (
@@ -275,7 +283,7 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
               </svg>
             )}
           </button>
-          <button className="btnRefresh" onClick={reload} title="Làm mới" disabled={loading}>
+          <button className="btnRefresh" onClick={reload} title={t('calendar.refreshBtn')} disabled={loading}>
             <svg
               width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
               className={loading ? 'spinning' : ''}
@@ -288,7 +296,7 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
             className="btnPrimary btnPrimaryAmber"
             style={{ padding: '.38rem .85rem', fontSize: '.82rem', display: isViewingSelf ? undefined : 'none' }}
             onClick={() => onBulkOpen()}
-            title="Log Time (⌘L)"
+            title={t('calendar.logTimeTooltip')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -296,7 +304,7 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
               <line x1="3" y1="10" x2="21" y2="10" />
               <line x1="8" y1="14" x2="16" y2="14" /><line x1="8" y1="18" x2="13" y2="18" />
             </svg>
-            Log Time
+            {t('calendar.logTimeBtn')}
           </button>
         </div>
       </div>
@@ -312,34 +320,34 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {emptyDays.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-                <strong style={{ whiteSpace: 'nowrap' }}>Chưa log ({emptyDays.length}):</strong>
+                <strong style={{ whiteSpace: 'nowrap' }}>{t('calendar.missingDays', { n: emptyDays.length })}</strong>
                 {emptyDays.slice(0, 5).map(d => (
                   <button
                     key={d} type="button" className="missingChip"
-                    onClick={() => onBulkOpen(d)} title={`Log ngày ${d}`}
+                    onClick={() => onBulkOpen(d)} title={t('calendar.missingChipTooltip', { d })}
                   >
                     {d.split('-')[2]}/{d.split('-')[1]}
                   </button>
                 ))}
                 {emptyDays.length > 5 && (
-                  <span style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>+{emptyDays.length - 5} ngày</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>+{t('log.selectedDaysCount', { n: emptyDays.length - 5 })}</span>
                 )}
               </div>
             )}
             {incompleteDays.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-                <strong style={{ whiteSpace: 'nowrap', color: 'var(--amber, #b45309)' }}>Chưa đủ 8h ({incompleteDays.length}):</strong>
+                <strong style={{ whiteSpace: 'nowrap', color: 'var(--amber, #b45309)' }}>{t('calendar.incompleteDays', { n: incompleteDays.length })}</strong>
                 {incompleteDays.slice(0, 5).map(({ date: d, hours: h }) => (
                   <button
                     key={d} type="button" className="missingChip"
-                    onClick={() => onBulkOpen(d)} title={`${d} — đã log ${fmtHours(h)}h`}
+                    onClick={() => onBulkOpen(d)} title={t('calendar.incompleteChipTooltip', { d, h: fmtHours(h) })}
                     style={{ borderColor: 'var(--amber, #b45309)', color: 'var(--amber, #b45309)' }}
                   >
                     {d.split('-')[2]}/{d.split('-')[1]} · {fmtHours(h)}h
                   </button>
                 ))}
                 {incompleteDays.length > 5 && (
-                  <span style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>+{incompleteDays.length - 5} ngày</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>+{t('log.selectedDaysCount', { n: incompleteDays.length - 5 })}</span>
                 )}
               </div>
             )}
@@ -351,8 +359,8 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
               secureSet(snoozeKey, String(Date.now() + 24 * 60 * 60 * 1000));
               setIsSnoozed(true);
             }}
-            title="Ẩn cảnh báo này 24h"
-            aria-label="Đóng cảnh báo"
+            title={t('calendar.snoozeTooltip')}
+            aria-label={t('calendar.snoozeAria')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -364,24 +372,24 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
       {/* ── Summary strip ── */}
       <div className="summaryStrip">
         <div className="summaryCard">
-          <span className="summaryLabel">Tổng tháng</span>
+          <span className="summaryLabel">{t('calendar.totalMonth')}</span>
           <span className="summaryVal">
             {fmtHours(totalH)}<span style={{ color: 'var(--text-muted)', fontWeight: 500 }}> / {targetH}h</span>
           </span>
           <span className="summaryLabel" style={{ textTransform: 'none', letterSpacing: 0, opacity: .8 }}>
-            {pctH}% · {workingDays} ngày công
+            {t('calendar.workingDaysCount', { pct: pctH, days: workingDays })}
           </span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Trung bình / ngày</span>
+          <span className="summaryLabel">{t('calendar.averagePerDay')}</span>
           <span className="summaryVal">{fmtHours(avgH)}h</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Ngày có log</span>
+          <span className="summaryLabel">{t('calendar.loggedDaysCount')}</span>
           <span className="summaryVal">{logDays}</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Hôm nay</span>
+          <span className="summaryLabel">{t('calendar.todayLogged')}</span>
           <span className="summaryVal">{todayH > 0 ? `${fmtHours(todayH)}h` : '--'}</span>
         </div>
       </div>
@@ -389,7 +397,15 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
       {/* ── Calendar ── */}
       <div className="calendarWrap">
         <div className="calHeaderRow">
-          {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) => (
+          {[
+            t('calendar.mon'),
+            t('calendar.tue'),
+            t('calendar.wed'),
+            t('calendar.thu'),
+            t('calendar.fri'),
+            t('calendar.sat'),
+            t('calendar.sun'),
+          ].map((d, i) => (
             <div key={d} className={`calDow${i >= 5 ? ' calDowWeekend' : ''}`}>{d}</div>
           ))}
         </div>
@@ -397,7 +413,7 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
         {loading ? (
           <div className="loadingState">
             <div className="loadingSpinner" />
-            <p>Đang tải dữ liệu…</p>
+            <p>{t('calendar.loading')}</p>
           </div>
         ) : (
           <div className={`calGrid${showAllEntries ? ' calGridExpanded' : ''}`}>
@@ -467,7 +483,7 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
                             className="calEntryTag calEntryTagMore"
                             onClick={ev => { ev.stopPropagation(); setDetailDate(dateStr); }}
                           >
-                            +{entries.length - 2} thêm
+                            {t('calendar.moreCount', { n: entries.length - 2 })}
                           </button>
                         )}
                       </div>
@@ -478,8 +494,8 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
                         <button
                           className="calAddBtn"
                           onClick={ev => { ev.stopPropagation(); onBulkOpen(dateStr); }}
-                          title="Log thêm"
-                          aria-label="Log thêm thời gian"
+                          title={t('calendar.logMoreTooltip')}
+                          aria-label={t('calendar.logMoreAria')}
                         >+</button>
                       )}
                     </>
@@ -510,7 +526,6 @@ export default function CalendarView({ onBulkOpen }: CalendarViewProps) {
         date={detailDate}
         onClose={() => setDetailDate(null)}
         onAddEntry={() => { onBulkOpen(detailDate); setDetailDate(null); }}
-
       />
     </div>
   );

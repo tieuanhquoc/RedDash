@@ -7,6 +7,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useApp } from './AppContext';
+import { useT } from '@/lib/i18n';
 import { searchIssues } from '@/lib/redmine';
 import { isFavoriteInList, type FavoriteIssue } from '@/lib/favorites';
 import type { RedmineIssue } from '@/lib/types';
@@ -57,6 +58,7 @@ function IssueItem({
   onToggleFav?: (e: React.MouseEvent) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   const meta = [
     issue.project?.name,
     issue.parent?.subject ? `↑ ${issue.parent.subject}` : null,
@@ -86,7 +88,7 @@ function IssueItem({
         <span
           className="favStar"
           onClick={e => { e.stopPropagation(); onToggleFav(e); }}
-          title={isFav ? 'Bỏ pin' : 'Pin issue này'}
+          title={isFav ? t('favorites.unpinTitle') : t('favorites.pinTooltip')}
         >
           {isFav ? '★' : '☆'}
         </span>
@@ -103,11 +105,13 @@ export default function IssueSearchInput({
   recentIssues = [],
   onToggleFav,
   disabled,
-  placeholder = 'ID hoặc tìm kiếm…',
+  placeholder,
   autoFocus,
   inputId,
   required,
 }: Props) {
+  const t = useT();
+  const actualPlaceholder = placeholder ?? t('common.searchPlaceholder');
   const { state } = useApp();
   const [suggestions, setSuggestions] = useState<RedmineIssue[]>([]);
   const [showDrop, setShowDrop] = useState(false);
@@ -157,7 +161,7 @@ export default function IssueSearchInput({
         id={inputId}
         className="fieldInput"
         type="text"
-        placeholder={placeholder}
+        placeholder={actualPlaceholder}
         autoComplete="off"
         value={value}
         onChange={e => handleInput(e.target.value)}
@@ -181,13 +185,13 @@ export default function IssueSearchInput({
             />
           ))}
           {hasQuery && suggestions.length === 0 && (
-            <div className="dropdownEmpty">Không tìm thấy kết quả</div>
+            <div className="dropdownEmpty">{t('common.noResults')}</div>
           )}
 
           {/* Pinned */}
           {showFavSection && (
             <>
-              <div className="dropdownHeader">⭐ Pin</div>
+              <div className="dropdownHeader">{t('favorites.pinnedHeader')}</div>
               {favorites.map(f => (
                 <IssueItem
                   key={`f-${f.id}`}
@@ -203,7 +207,7 @@ export default function IssueSearchInput({
           {/* Recent */}
           {showRecentSection && (
             <>
-              <div className="dropdownHeader">🕒 Gần đây</div>
+              <div className="dropdownHeader">🕒 {t('common.recent')}</div>
               {recentIssues
                 .filter(r => !favorites.some(f => f.id === r.id))
                 .map(r => (
@@ -219,7 +223,7 @@ export default function IssueSearchInput({
           )}
 
           {!hasQuery && !showFavSection && !showRecentSection && (
-            <div className="dropdownEmpty">Gõ để tìm issue, hoặc pin issue thường dùng (★)</div>
+            <div className="dropdownEmpty">{t('favorites.searchEmptyTip')}</div>
           )}
         </div>
       )}

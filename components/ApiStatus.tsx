@@ -12,6 +12,7 @@
  */
 
 import React from 'react';
+import { useT } from '@/lib/i18n';
 
 export interface ApiStatusProps {
   loading?: boolean;
@@ -23,6 +24,8 @@ export interface ApiStatusProps {
 }
 
 export function ApiStatus({ loading, error, onRetry, compact, children }: ApiStatusProps) {
+  const t = useT();
+
   if (error) {
     return (
       <div
@@ -57,7 +60,7 @@ export function ApiStatus({ loading, error, onRetry, compact, children }: ApiSta
               flexShrink: 0,
             }}
           >
-            Thử lại
+            {t('common.retry')}
           </button>
         )}
       </div>
@@ -86,7 +89,7 @@ export function ApiStatus({ loading, error, onRetry, compact, children }: ApiSta
             animation: 'apiSpin 0.8s linear infinite',
           }}
         />
-        Đang tải…
+        {t('common.loading')}
         <style jsx>{`
           @keyframes apiSpin { to { transform: rotate(360deg); } }
         `}</style>

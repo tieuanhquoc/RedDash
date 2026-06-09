@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { AppProvider, useApp } from '@/components/AppContext';
+import { I18nProvider } from '@/lib/i18n';
 import SettingsModal from '@/components/SettingsModal';
 import { AppShell } from '@/components/Shell';
 import Toast from '@/components/Toast';
@@ -40,8 +41,10 @@ function App() {
 
 export default function Page() {
   return (
-    <AppProvider>
-      <App />
-    </AppProvider>
+    <I18nProvider>
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </I18nProvider>
   );
 }

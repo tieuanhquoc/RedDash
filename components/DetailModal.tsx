@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from './AppContext';
 import { deleteTimeEntry } from '@/lib/redmine';
 import type { RedmineTimeEntry } from '@/lib/types';
+import { useT, useI18n } from '@/lib/i18n';
 
 interface Props {
   date: string | null;
@@ -18,6 +19,8 @@ function fmtHours(h: number | string) {
 
 export default function DetailModal({ date, onClose, onAddEntry }: Props) {
   const { state, dispatch, showToast } = useApp();
+  const t = useT();
+  const { locale } = useI18n();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   if (!date) return null;
@@ -27,7 +30,7 @@ export default function DetailModal({ date, onClose, onAddEntry }: Props) {
   const total = entries.reduce((s, e) => s + parseFloat(String(e.hours || 0)), 0);
   const dateLabel = (() => {
     const [y, m, d] = date.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('vi-VN', {
+    return new Date(y, m - 1, d).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
   })();
@@ -39,13 +42,13 @@ export default function DetailModal({ date, onClose, onAddEntry }: Props) {
     try {
       await deleteTimeEntry(state.config, entry.id);
       dispatch({ type: 'REMOVE_TIME_ENTRY', payload: { date, entryId: entry.id } });
-      showToast('Đã xoá entry', 'success');
+      showToast(t('log.deleteSuccess'), 'success');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('403')) {
-        showToast('Bạn không có quyền xoá entry này', 'error');
+        showToast(t('log.deleteForbidden'), 'error');
       } else {
-        showToast(`Xoá thất bại: ${msg}`, 'error');
+        showToast(t('log.deleteError', { msg }), 'error');
       }
     } finally {
       setDeletingId(null);
@@ -65,9 +68,9 @@ export default function DetailModal({ date, onClose, onAddEntry }: Props) {
           </div>
           <div>
             <h2 className="modalTitle">{dateLabel}</h2>
-            <p className="modalSubtitle">Tổng: <strong style={{ color: 'var(--green)' }}>{fmtHours(total)}h</strong> · {entries.length} entry</p>
+            <p className="modalSubtitle">{t('log.totalLabel')}: <strong style={{ color: 'var(--green)' }}>{fmtHours(total)}h</strong> · {entries.length === 1 ? `1 ${t('log.entrySingle')}` : `${entries.length} ${t('log.entryPlural')}`}</p>
           </div>
-          <button className="closeBtn" onClick={onClose} aria-label="Đóng">
+          <button className="closeBtn" onClick={onClose} aria-label={t('common.close')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -76,13 +79,13 @@ export default function DetailModal({ date, onClose, onAddEntry }: Props) {
 
         <div className="detailList">
           {entries.length === 0
-            ? <p className="detailEmpty">Không có dữ liệu</p>
+            ? <p className="detailEmpty">{t('common.noData')}</p>
             : entries.map(e => (
               <div key={e.id} className="detailEntry">
                 <div className="detailEntryHeader">
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="detailIssueName">
-                      {e.issue ? (e.issue.name || `Issue #${e.issue.id}`) : 'Không có issue'}
+                      {e.issue ? (e.issue.name || `Issue #${e.issue.id}`) : t('log.noIssue')}
                     </div>
                     {e.issue && <div className="detailIssueId">#{e.issue.id}</div>}
                   </div>
@@ -92,8 +95,8 @@ export default function DetailModal({ date, onClose, onAddEntry }: Props) {
                       type="button"
                       onClick={() => setConfirmId(e.id)}
                       disabled={deletingId === e.id}
-                      title="Xoá entry"
-                      aria-label="Xoá entry"
+                      title={t('common.delete')}
+                      aria-label={t('common.delete')}
                       style={{
                         background: 'transparent', border: 'none',
                         cursor: deletingId === e.id ? 'wait' : 'pointer',
@@ -121,14 +124,14 @@ export default function DetailModal({ date, onClose, onAddEntry }: Props) {
                     background: 'rgba(224,62,62,.08)', border: '1px solid rgba(224,62,62,.25)',
                     fontSize: '.8rem', color: 'var(--red, #E03E3E)',
                   }}>
-                    <span style={{ flex: 1 }}>Xoá {fmtHours(e.hours)}h này?</span>
+                    <span style={{ flex: 1 }}>{t('log.confirmDeleteHours', { hours: fmtHours(e.hours) })}</span>
                     <button type="button" onClick={() => setConfirmId(null)}
                       style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '.8rem', color: 'var(--text-sec)' }}>
-                      Huỷ
+                      {t('common.cancel')}
                     </button>
                     <button type="button" onClick={() => confirmDelete(e)}
                       style={{ background: 'var(--red, #E03E3E)', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '.8rem', color: '#fff', fontWeight: 600 }}>
-                      Xoá
+                      {t('common.delete')}
                     </button>
                   </div>
                 )}
@@ -143,13 +146,13 @@ export default function DetailModal({ date, onClose, onAddEntry }: Props) {
         </div>
 
         <div className="modalActions">
-          <button className="btnSecondary" onClick={onClose}>Đóng</button>
+          <button className="btnSecondary" onClick={onClose}>{t('common.close')}</button>
           {isViewingSelf && (
             <button className="btnPrimary btnPrimaryGreen" onClick={onAddEntry}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              Thêm entry
+              {t('log.addEntryBtn')}
             </button>
           )}
         </div>

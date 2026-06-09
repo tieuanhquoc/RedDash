@@ -10,6 +10,7 @@ import FavoritesView from './FavoritesView';
 import SecurityView, { LS_AUTO_LOCK_MINUTES } from './SecurityView';
 import { useEffect } from 'react';
 import { fetchTimeEntries } from '@/lib/redmine';
+import { useI18n } from '@/lib/i18n';
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 interface SidebarProps {
@@ -18,6 +19,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onBulkOpen }: SidebarProps) {
   const { state, dispatch } = useApp();
+  const { t } = useI18n();
   if (!state.currentUser) return null;
 
   const u = state.currentUser;
@@ -41,7 +43,7 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
             <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
             <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          Lịch
+          {t('sidebar.calendar')}
         </button>
         <button
           className={`navItem${state.view === 'stats' ? ' navItemActive' : ''}`}
@@ -51,7 +53,7 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
             <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" />
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
-          Thống kê
+          {t('sidebar.stats')}
         </button>
         <button
           className={`navItem${state.view === 'team' ? ' navItemActive' : ''}`}
@@ -63,7 +65,7 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
-          Team
+          {t('sidebar.team')}
         </button>
         <button
           className={`navItem${state.view === 'favorites' ? ' navItemActive' : ''}`}
@@ -72,7 +74,7 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
-          Pin
+          {t('sidebar.favorites')}
         </button>
 
         <div style={{ height: '1px', background: 'var(--border)', margin: '.35rem 0' }} />
@@ -82,13 +84,13 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
             className="navItem"
             style={{ color: 'var(--amber)' }}
             onClick={onBulkOpen}
-            title="Log Time (⌘L)"
+            title={t('sidebar.logTimeTooltip')}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Log Time
+            {t('sidebar.logTime')}
             <span style={{ marginLeft: 'auto', fontSize: '.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>⌘L</span>
           </button>
         )}
@@ -105,7 +107,7 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
         <button
           className="iconBtn"
           onClick={() => dispatch({ type: 'SET_VIEW', payload: 'security' })}
-          title="Cài đặt bảo mật"
+          title={t('sidebar.settingsTitle')}
           style={state.view === 'security' ? { color: 'var(--accent, #6366F1)' } : undefined}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -121,6 +123,7 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
 // ─── Main content + modals ───────────────────────────────────────────────────
 export function AppShell() {
   const { state, dispatch } = useApp();
+  const { t } = useI18n();
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkInitialDate, setBulkInitialDate] = useState<string | null>(null);
   const [bulkInitialIssue, setBulkInitialIssue] = useState<{ id: number; subject: string } | null>(null);
@@ -139,15 +142,15 @@ export function AppShell() {
     const entries = state.timeEntries[todayKey] ?? [];
     const totalHours = entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
     const text = entries.length === 0
-      ? 'Hôm nay: chưa log'
-      : `Hôm nay: ${totalHours.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')}h`;
+      ? t('tray.todayEmpty')
+      : t('tray.todayLabel', { hours: totalHours.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') });
     (async () => {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         await invoke('update_tray_total', { text });
       } catch { /* browser mode */ }
     })();
-  }, [state.timeEntries, state.currentUser]);
+  }, [state.timeEntries, state.currentUser, t]);
 
   // Tray menu events from Rust → JS actions.
   useEffect(() => {

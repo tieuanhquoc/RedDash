@@ -7,6 +7,7 @@ import { getFavorites, toggleFavorite, type FavoriteIssue } from '@/lib/favorite
 import type { RedmineActivity } from '@/lib/types';
 import SearchableSelect from './SearchableSelect';
 import IssueSearchInput, { type IssueOption } from './IssueSearchInput';
+import { useI18n } from '@/lib/i18n';
 
 interface Props {
   isOpen: boolean;
@@ -26,6 +27,7 @@ type SubmitStatus = 'idle' | 'running' | 'done';
 
 export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, initialIssue }: Props) {
   const { state, showToast } = useApp();
+  const { locale, t } = useI18n();
 
   // Form fields
   const [issueText, setIssueText] = useState('');
@@ -178,9 +180,9 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
     e.preventDefault();
     setError('');
     const h = parseFloat(hours);
-    if (!h || h <= 0) { setError('Vui lòng nhập số giờ hợp lệ.'); return; }
-    if (!activityId) { setError('Vui lòng chọn activity.'); return; }
-    if (selected.size === 0) { setError('Vui lòng chọn ít nhất 1 ngày.'); return; }
+    if (!h || h <= 0) { setError(t('log.errInvalidHours')); return; }
+    if (!activityId) { setError(t('log.errMissingActivity')); return; }
+    if (selected.size === 0) { setError(t('log.errNoDaysSelected')); return; }
     if (!state.config) return;
 
     let finalIssueId = issueId;
@@ -212,12 +214,12 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
     setStatus('done');
     const successCount = dates.length - errorCount;
     if (successCount > 0) {
-      showToast(`✓ Đã log ${successCount}/${dates.length} ngày thành công!`, 'success');
+      showToast(t('log.toastSuccess', { done: successCount, total: dates.length }), 'success');
       onSuccess(dates);
       onClose();
     }
     if (errorCount > 0) {
-      showToast(`⚠ ${errorCount} ngày bị lỗi`, 'error');
+      showToast(t('log.toastError', { errors: errorCount }), 'error');
     }
   }
 
@@ -246,14 +248,15 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
     cells.push({ day: d, dateStr: padDate(ny, nm, d), cur: false, dow: cells.length % 7 });
   }
 
-  const pickerLabel = new Date(pickerYear, pickerMonth - 1, 1).toLocaleDateString('vi-VN', {
-    month: 'long', year: 'numeric',
-  });
+  const pickerLabel = new Date(pickerYear, pickerMonth - 1, 1).toLocaleDateString(
+    locale === 'vi' ? 'vi-VN' : 'en-US',
+    { month: 'long', year: 'numeric' }
+  );
 
   return (
     <div
       className="modalOverlay"
-      role="dialog" aria-modal aria-label="Log time"
+      role="dialog" aria-modal aria-label={t('sidebar.logTime')}
       onClick={e => e.target === e.currentTarget && status !== 'running' && onClose()}
     >
       <form className="modalBox bulkBox" onSubmit={handleSubmit}>
@@ -267,10 +270,10 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
             </svg>
           </div>
           <div>
-            <h2 className="modalTitle">Log Time</h2>
-            <p className="modalSubtitle">Chọn 1 hoặc nhiều ngày · cùng task · cùng số giờ</p>
+            <h2 className="modalTitle">{t('sidebar.logTime')}</h2>
+            <p className="modalSubtitle">{t('log.subtitle')}</p>
           </div>
-          <button type="button" className="closeBtn" onClick={onClose} disabled={status === 'running'} aria-label="Đóng">
+          <button type="button" className="closeBtn" onClick={onClose} disabled={status === 'running'} aria-label={t('common.close')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -295,7 +298,7 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
 
             <div className="formRow">
               <div className="fieldGroup flex1">
-                <label className="fieldLabel" htmlFor="bulk-hours">Giờ / ngày</label>
+                <label className="fieldLabel" htmlFor="bulk-hours">{t('log.hoursPerDay')}</label>
                 <input
                   id="bulk-hours" className="fieldInput" type="number"
                   min="0.25" max="24" step="0.25" placeholder="e.g. 8"
@@ -311,7 +314,7 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
                   onChange={a => setActivityId(a.id)}
                   getKey={a => a.id}
                   getLabel={a => a.name}
-                  placeholder="Chọn activity"
+                  placeholder={t('log.selectActivity')}
                   required
                   disabled={status === 'running'}
                   className="fieldInput fieldSelect"
@@ -320,10 +323,10 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
             </div>
 
             <div className="fieldGroup">
-              <label className="fieldLabel" htmlFor="bulk-comment">Mô tả (áp dụng cho tất cả ngày)</label>
+              <label className="fieldLabel" htmlFor="bulk-comment">{t('log.descriptionLabel')}</label>
               <textarea
                 id="bulk-comment" className="fieldInput fieldTextarea"
-                placeholder="Mô tả chung…" rows={3}
+                placeholder={t('log.descriptionPlaceholder')} rows={3}
                 value={comment} onChange={e => setComment(e.target.value)}
                 disabled={status === 'running'}
               />
@@ -335,8 +338,10 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
                 <div className="bulkProgressHeader">
                   <span>
                     {status === 'running'
-                      ? `Đang log… ${progress.done}/${progress.total}`
-                      : `Hoàn tất: ${progress.done - progress.errors} thành công${progress.errors > 0 ? `, ${progress.errors} lỗi` : ''}`
+                      ? t('log.progressLogging', { done: progress.done, total: progress.total })
+                      : progress.errors > 0
+                        ? t('log.progressCompleteWithErrors', { success: progress.done - progress.errors, errors: progress.errors })
+                        : t('log.progressCompleteSuccessOnly', { success: progress.done })
                     }
                   </span>
                   <span className="bulkProgressPct">{Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%</span>
@@ -356,14 +361,14 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
           {/* ─── Right: Date picker ─── */}
           <div className="bulkRight">
             <div className="pickerHeader">
-              <button type="button" className="navBtn" onClick={() => navMonth(-1)} aria-label="Tháng trước">
+              <button type="button" className="navBtn" onClick={() => navMonth(-1)} aria-label={t('calendar.prevMonth')}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="15 18 9 12 15 6" />
                 </svg>
               </button>
               <span className="pickerMonthLabel">{pickerLabel}</span>
               <button
-                type="button" className="navBtn" onClick={() => navMonth(1)} aria-label="Tháng sau"
+                type="button" className="navBtn" onClick={() => navMonth(1)} aria-label={t('calendar.nextMonth')}
                 disabled={isPickerAtCurrentMonth}
                 style={isPickerAtCurrentMonth ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
               >
@@ -374,24 +379,32 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
             </div>
 
             <div className="pickerActions">
-              <button type="button" className="pickerActionBtn" onClick={selectWeekdays}>Ngày thường</button>
-              <button type="button" className="pickerActionBtn" onClick={clearSelection}>Bỏ chọn</button>
+              <button type="button" className="pickerActionBtn" onClick={selectWeekdays}>{t('log.weekdays')}</button>
+              <button type="button" className="pickerActionBtn" onClick={clearSelection}>{t('log.clearSelection')}</button>
               <span className="pickerCount">
-                {selected.size > 0 ? `${selected.size} ngày` : '0 ngày'}
+                {t('log.selectedDaysCount', { n: selected.size })}
               </span>
               {issueId && (
                 <span
                   className="pickerCount"
                   style={{ color: 'var(--green, #10b981)', marginLeft: 'auto' }}
-                  title={loadingLogged ? 'Đang tải…' : `Đã log issue này: ${loggedDates.size} ngày trong tháng`}
+                  title={loadingLogged ? t('common.loading') : t('log.loggedTooltip', { n: loggedDates.size })}
                 >
-                  {loadingLogged ? '…' : `● ${loggedDates.size} ngày đã log`}
+                  {loadingLogged ? '…' : t('log.loggedCount', { n: loggedDates.size })}
                 </span>
               )}
             </div>
 
             <div className="miniCalHeader">
-              {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) => (
+              {[
+                t('calendar.mon'),
+                t('calendar.tue'),
+                t('calendar.wed'),
+                t('calendar.thu'),
+                t('calendar.fri'),
+                t('calendar.sat'),
+                t('calendar.sun'),
+              ].map((d, i) => (
                 <div key={d} className={`miniDow${i >= 5 ? ' miniDowWeekend' : ''}`}>{d}</div>
               ))}
             </div>
@@ -420,7 +433,7 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
                     ].filter(Boolean).join(' ')}
                     onClick={() => !isDisabled && toggleDate(dateStr)}
                     title={hasLogged
-                      ? `${dateStr} — đã log ${loggedHours}h cho issue này`
+                      ? t('log.dayLoggedInfo', { dateStr, hours: loggedHours })
                       : dateStr}
                     style={hasLogged && !isSel ? {
                       boxShadow: 'inset 0 0 0 1.5px var(--green, #10b981)',
@@ -454,17 +467,17 @@ export default function BulkLogModal({ isOpen, onClose, onSuccess, initialDate, 
 
         <div className="modalActions">
           <button type="button" className="btnSecondary" onClick={onClose} disabled={status === 'running'}>
-            {status === 'done' ? 'Đóng' : 'Hủy'}
+            {status === 'done' ? t('common.close') : t('common.cancel')}
           </button>
           {status !== 'done' && (
             <button type="submit" className="btnPrimary btnPrimaryAmber" disabled={status === 'running' || selected.size === 0}>
               {status === 'running'
-                ? <><span className="spinner" /> Đang log…</>
+                ? <><span className="spinner" /> {t('log.loggingBtn')}</>
                 : <>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polyline points="22 2 11 13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
-                  Log {selected.size > 0 ? `${selected.size} ngày` : 'hàng loạt'}
+                  {selected.size > 0 ? t('log.submitBtnCount', { n: selected.size }) : t('log.submitBtnBulk')}
                 </>
               }
             </button>

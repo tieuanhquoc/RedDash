@@ -45,11 +45,18 @@
 html { font-size: 14px; }
 body {
   font-family: var(--font);
-  background: var(--bg-base);
+  /* Transparent on Tauri vibrancy/Mica platforms — native blur shows through.
+     Solid fallback on plain web (Next.js dev in browser) + Linux. */
+  background: transparent;
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.5;
+}
+/* Solid fallback when running in a non-Tauri browser or Linux Tauri build
+   (no vibrancy support → keep readable background). */
+@supports not (backdrop-filter: blur(1px)) {
+  body { background: var(--bg-base); }
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }

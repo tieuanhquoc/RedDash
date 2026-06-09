@@ -5,6 +5,8 @@
  * can render meaningful UI ("Sai API token") instead of raw status codes.
  */
 
+import { getDict } from './i18n';
+
 export class ApiError extends Error {
   status: number;
   rawBody: unknown;
@@ -39,23 +41,24 @@ export function friendlyMessage(status: number, rawBody: unknown): string {
       return errs.map(e => String(e)).join('. ');
     }
   }
+  const dict = getDict();
   switch (status) {
-    case 0:        return 'Không kết nối được Redmine. Kiểm tra mạng hoặc URL.';
-    case 400:      return 'Dữ liệu gửi không hợp lệ.';
-    case 401:      return 'API token không đúng hoặc đã bị thu hồi.';
-    case 403:      return 'Không có quyền thực hiện thao tác này.';
-    case 404:      return 'Không tìm thấy tài nguyên (issue, user, hoặc URL sai).';
-    case 408:      return 'Redmine phản hồi quá lâu, thử lại sau.';
-    case 422:      return 'Dữ liệu không hợp lệ (Redmine từ chối lưu).';
-    case 429:      return 'Quá nhiều request — chờ một chút rồi thử lại.';
-    case 500:      return 'Redmine gặp lỗi nội bộ. Thử lại sau ít phút.';
+    case 0:        return dict.errors.network;
+    case 400:      return dict.errors.badRequest;
+    case 401:      return dict.errors.badToken;
+    case 403:      return dict.errors.forbidden;
+    case 404:      return dict.errors.notFound;
+    case 408:      return dict.errors.timeout;
+    case 422:      return dict.errors.validation;
+    case 429:      return dict.errors.rateLimit;
+    case 500:      return dict.errors.server;
     case 502:
     case 503:
-    case 504:      return 'Redmine đang bảo trì hoặc tạm thời không phản hồi.';
+    case 504:      return dict.errors.maintenance;
     default:
-      if (status >= 500) return 'Lỗi máy chủ Redmine — thử lại sau.';
-      if (status >= 400) return 'Yêu cầu bị từ chối.';
-      return 'Có lỗi không xác định khi gọi Redmine.';
+      if (status >= 500) return dict.errors.serverError;
+      if (status >= 400) return dict.errors.clientError;
+      return dict.errors.unknown;
   }
 }
 
@@ -65,7 +68,7 @@ export function errorToMessage(err: unknown): string {
   if (err instanceof Error) {
     // Network-level errors from invoke / reqwest.
     if (/network|connect|timeout|dns|resolve/i.test(err.message)) {
-      return 'Không kết nối được Redmine. Kiểm tra mạng hoặc URL.';
+      return getDict().errors.network;
     }
     return err.message;
   }

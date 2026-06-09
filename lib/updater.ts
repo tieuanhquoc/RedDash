@@ -7,6 +7,8 @@
  *             including "đã là bản mới nhất".
  */
 
+import { getDict } from './i18n';
+
 function isTauri(): boolean {
   if (typeof window === 'undefined') return false;
   return Boolean((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -14,6 +16,7 @@ function isTauri(): boolean {
 
 export async function checkForUpdate(manual = false): Promise<void> {
   if (!isTauri()) return;
+  const dict = getDict();
   try {
     const { check } = await import('@tauri-apps/plugin-updater');
     const { ask, message } = await import('@tauri-apps/plugin-dialog');
@@ -21,13 +24,22 @@ export async function checkForUpdate(manual = false): Promise<void> {
 
     const update = await check();
     if (!update) {
-      if (manual) await message('Đang dùng bản mới nhất.', { title: 'RedDash', kind: 'info' });
+      if (manual) await message(dict.updater.currentVersion, { title: 'RedDash', kind: 'info' });
       return;
     }
 
+    const promptText = dict.updater.newVersionPrompt
+      .replace('{version}', update.version)
+      .replace('{body}', update.body ?? '');
+
     const yes = await ask(
-      `Có bản mới: ${update.version}\n\n${update.body ?? ''}\n\nTải về và cài đặt ngay?`,
-      { title: 'RedDash — Cập nhật', kind: 'info', okLabel: 'Cập nhật', cancelLabel: 'Để sau' },
+      promptText,
+      {
+        title: dict.updater.newVersionTitle,
+        kind: 'info',
+        okLabel: dict.updater.updateBtn,
+        cancelLabel: dict.updater.laterBtn,
+      },
     );
     if (!yes) return;
 
@@ -36,8 +48,8 @@ export async function checkForUpdate(manual = false): Promise<void> {
   } catch (err) {
     if (manual) {
       const { message } = await import('@tauri-apps/plugin-dialog');
-      await message(`Không kiểm tra được cập nhật: ${err instanceof Error ? err.message : String(err)}`,
-        { title: 'RedDash', kind: 'error' });
+      const errorMsg = dict.updater.updateFailed.replace('{msg}', err instanceof Error ? err.message : String(err));
+      await message(errorMsg, { title: 'RedDash', kind: 'error' });
     }
     // Silent mode: swallow — don't spam users on flaky network / no pubkey yet.
   }

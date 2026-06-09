@@ -5,6 +5,7 @@ import { useApp } from './AppContext';
 import { fetchAllTimeEntries, fetchUsers } from '@/lib/redmine';
 import { secureGet, secureSet } from '@/lib/storage';
 import type { RedmineTimeEntry } from '@/lib/types';
+import { useT, useI18n } from '@/lib/i18n';
 
 const TEAM_FILTER_KEY_PREFIX = 'team_view_user_ids';
 
@@ -34,6 +35,8 @@ function pctColor(pct: number): { bg: string; fg: string } {
 
 export default function TeamView() {
   const { state, dispatch, showToast } = useApp();
+  const t = useT();
+  const { locale } = useI18n();
   const { config, users } = state;
 
   // Namespace filter key by domain so different Redmine instances don't share user selections
@@ -104,7 +107,9 @@ export default function TeamView() {
         d.setDate(d.getDate() + i);
         dates.push(padDate(d.getFullYear(), d.getMonth() + 1, d.getDate()));
       }
-      const lbl = `Tuần ${monday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} – ${sunday.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}`;
+      const mondayStr = monday.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit' });
+      const sundayStr = sunday.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit' });
+      const lbl = t('team.weekLabel', { start: mondayStr, end: sundayStr });
       return { from: dates[0], to: dates[6], dates, label: lbl };
     } else {
       const y = anchor.getFullYear();
@@ -112,10 +117,10 @@ export default function TeamView() {
       const lastDay = new Date(y, m, 0).getDate();
       const dates: string[] = [];
       for (let d = 1; d <= lastDay; d++) dates.push(padDate(y, m, d));
-      const lbl = anchor.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+      const lbl = anchor.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'long', year: 'numeric' });
       return { from: dates[0], to: dates[dates.length - 1], dates, label: lbl };
     }
-  }, [anchor, period]);
+  }, [anchor, period, t, locale]);
 
   // Fetch only when at least one user is selected — avoids hammering server on empty filter
   useEffect(() => {
@@ -128,7 +133,7 @@ export default function TeamView() {
         const data = await fetchAllTimeEntries(config, from, to);
         if (!cancelled) setEntries(data);
       } catch (err: unknown) {
-        if (!cancelled) showToast('Lỗi tải team data: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        if (!cancelled) showToast(t('team.loadError', { msg: err instanceof Error ? err.message : String(err) }), 'error');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -203,14 +208,14 @@ export default function TeamView() {
     <div className="viewPane">
       <div className="viewHeader">
         <div className="headerLeft">
-          <h1 className="viewTitle">Team</h1>
+          <h1 className="viewTitle">{t('team.title')}</h1>
           <div className="monthNav">
-            <button className="navBtn" onClick={() => navigate(-1)} aria-label="Trước">
+            <button className="navBtn" onClick={() => navigate(-1)} aria-label={t('common.prev')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <span className="monthLabel">{label}</span>
             {loading && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="spinning" style={{ opacity: .5 }}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>}
-            <button className="navBtn" onClick={() => navigate(1)} aria-label="Sau">
+            <button className="navBtn" onClick={() => navigate(1)} aria-label={t('common.next')}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
@@ -220,13 +225,13 @@ export default function TeamView() {
             <button
               className="selectPill"
               onClick={() => setFilterOpen(o => !o)}
-              title="Chọn user để theo dõi"
+              title={t('team.selectUser')}
               style={selectedUserIds.size > 0 ? { background: 'var(--accent-glow)', color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: 4, verticalAlign: -1 }}>
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
               </svg>
-              {selectedUserIds.size > 0 ? `Lọc · ${selectedUserIds.size}` : 'Chọn user'}
+              {selectedUserIds.size > 0 ? t('team.filterLabel', { n: selectedUserIds.size }) : t('team.selectUser')}
             </button>
             {filterOpen && (
               <div style={{
@@ -237,7 +242,7 @@ export default function TeamView() {
               }}>
                 <input
                   type="text"
-                  placeholder="Tìm user…"
+                  placeholder={t('team.searchUserPlaceholder')}
                   value={filterSearch}
                   onChange={e => setFilterSearch(e.target.value)}
                   className="fieldInput"
@@ -253,11 +258,11 @@ export default function TeamView() {
                       background: 'transparent', border: 'none', color: 'var(--red)',
                       cursor: 'pointer', borderRadius: 4, marginBottom: 4,
                     }}
-                  >Bỏ chọn tất cả</button>
+                  >{t('team.deselectAll')}</button>
                 )}
                 {filterUsers.length === 0 ? (
                   <div style={{ padding: 8, color: 'var(--text-muted)', fontSize: '.82rem', textAlign: 'center' }}>
-                    Không có user
+                    {t('team.noUserFound')}
                   </div>
                 ) : filterUsers.map(u => {
                   const checked = selectedUserIds.has(u.id);
@@ -290,57 +295,57 @@ export default function TeamView() {
               className="selectPill"
               onClick={() => setPeriod('week')}
               style={period === 'week' ? { background: 'var(--accent-glow)', color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-            >Tuần</button>
+            >{t('team.periodWeek')}</button>
             <button
               className="selectPill"
               onClick={() => setPeriod('month')}
               style={period === 'month' ? { background: 'var(--accent-glow)', color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-            >Tháng</button>
+            >{t('team.periodMonth')}</button>
           </div>
-          <button className="btnToday" onClick={() => setAnchor(new Date())}>Hôm nay</button>
+          <button className="btnToday" onClick={() => setAnchor(new Date())}>{t('common.today')}</button>
         </div>
       </div>
 
       <div className="summaryStrip">
         <div className="summaryCard">
-          <span className="summaryLabel">Số thành viên</span>
+          <span className="summaryLabel">{t('team.memberCount')}</span>
           <span className="summaryVal">{sortedRows.length}</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Ngày công</span>
+          <span className="summaryLabel">{t('team.workingDays')}</span>
           <span className="summaryVal">{workingDaysInRange}</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Target/người</span>
+          <span className="summaryLabel">{t('team.targetPerUser')}</span>
           <span className="summaryVal">{targetHours}h</span>
         </div>
         <div className="summaryCard">
-          <span className="summaryLabel">Tổng giờ team</span>
+          <span className="summaryLabel">{t('team.totalTeamHours')}</span>
           <span className="summaryVal">{fmt(sortedRows.reduce((s, r) => s + r.total, 0))}h</span>
         </div>
       </div>
 
       {!loading && sortedRows.length === 0 ? (
-        <p style={{ color: 'var(--text-muted)' }}>Không có dữ liệu trong khoảng này.</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('team.noData')}</p>
       ) : (
         <div className="teamTableWrap" style={loading ? { opacity: 0.45, pointerEvents: 'none', transition: 'opacity .15s' } : { transition: 'opacity .15s' }}>
           <table className="teamTable">
             <thead>
               <tr>
-                <th className="teamCellName">User</th>
+                <th className="teamCellName">{t('team.tableHeaderUser')}</th>
                 {weekDates.map(d => {
                   const [, mm, dd] = d.split('-');
                   const isToday = d === today;
                   return (
                     <th
-                      key={d}
+                       key={d}
                       className={`teamCellDate${isToday ? ' teamCellToday' : ''}`}
                     >
                       {dd}/{mm}
                     </th>
                   );
                 })}
-                <th className="teamCellTotal">Tổng</th>
+                <th className="teamCellTotal">{t('team.tableHeaderTotal')}</th>
                 <th className="teamCellPct">%</th>
               </tr>
             </thead>

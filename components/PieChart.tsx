@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 interface Slice {
   label: string;
@@ -39,13 +40,14 @@ function fmt(v: number): string {
 
 export default function PieChart({ title, rows, topN = 8, size = 220 }: PieChartProps) {
   const [hovered, setHovered] = useState<number | null>(null);
+  const { t } = useI18n();
 
   const total = rows.reduce((s, [, v]) => s + v, 0);
   if (total === 0) {
     return (
       <div className="statCard">
         <div className="statCardTitle">{title}</div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>Không có dữ liệu</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>{t('common.noData')}</p>
       </div>
     );
   }
@@ -62,7 +64,7 @@ export default function PieChart({ title, rows, topN = 8, size = 220 }: PieChart
   }));
   if (rest.length > 0) {
     slices.push({
-      label: `Khác (${rest.length})`,
+      label: `${t('common.other')} (${rest.length})`,
       value: restSum,
       color: PALETTE[PALETTE.length - 1],
     });
@@ -116,7 +118,7 @@ export default function PieChart({ title, rows, topN = 8, size = 220 }: PieChart
             textAnchor="middle"
             style={{ fontSize: 11, fill: 'var(--text-muted, #6B6B68)' }}
           >
-            Tổng
+            {t('log.totalLabel')}
           </text>
           <text
             x={cx} y={cy + 14}

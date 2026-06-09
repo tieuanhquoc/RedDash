@@ -108,6 +108,27 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_process::init())?;
+
+            // Translucent window background — macOS NSVisualEffectView
+            // (closest to Liquid Glass shipped with Tahoe), Windows Mica.
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            if let Some(win) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
+                {
+                    use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
+                    let _ = apply_vibrancy(
+                        &win,
+                        NSVisualEffectMaterial::HudWindow,
+                        Some(NSVisualEffectState::Active),
+                        Some(12.0),
+                    );
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    use window_vibrancy::apply_mica;
+                    let _ = apply_mica(&win, None);
+                }
+            }
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
@@ -128,6 +149,7 @@ pub fn run() {
 
                 // Top label shows today's total (updated from JS via the
                 // `update_tray_total` command). Disabled so it acts as a header.
+                // TODO: Migrate these static tray menu labels to dynamic localized strings if/when Tauri tray i18n support is established.
                 let total_item = MenuItemBuilder::with_id("tray_total", "Hôm nay: —")
                     .enabled(false)
                     .build(app)?;

@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useT } from '@/lib/i18n';
 
 export interface SelectOption<V extends string | number> {
   value: V;
@@ -29,12 +30,14 @@ export default function Select<V extends string | number>({
   options,
   value,
   onChange,
-  placeholder = 'Chọn…',
+  placeholder,
   disabled,
   className = 'selectPill',
   pillStyle,
   maxHeight = 280,
 }: SelectProps<V>) {
+  const t = useT();
+  const actualPlaceholder = placeholder ?? t('common.select');
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +84,7 @@ export default function Select<V extends string | number>({
           flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           color: current ? undefined : 'var(--text-muted, #6B6B68)',
         }}>
-          {displayLabel || placeholder}
+          {displayLabel || actualPlaceholder}
         </span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              strokeWidth="2.5" style={{ opacity: 0.5, flexShrink: 0 }}>

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import type { RedmineUser } from '@/lib/types';
+import { useT } from '@/lib/i18n';
 
 interface UserPickerProps {
   currentUser: RedmineUser;
@@ -15,6 +16,7 @@ function fullName(u: RedmineUser): string {
 }
 
 export default function UserPicker({ currentUser, users, value, onChange }: UserPickerProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -63,7 +65,7 @@ export default function UserPicker({ currentUser, users, value, onChange }: User
   }
 
   const displayLabel = selected.id === currentUser.id
-    ? `${fullName(currentUser)} (bạn)`
+    ? `${fullName(currentUser)} ${t('common.selfSuffix')}`
     : fullName(selected);
 
   return (
@@ -73,7 +75,7 @@ export default function UserPicker({ currentUser, users, value, onChange }: User
           type="button"
           className="selectPill"
           onClick={() => setOpen(true)}
-          title="Chọn user"
+          title={t('team.selectUser')}
           style={{
             maxWidth: 220,
             textAlign: 'left',
@@ -97,7 +99,7 @@ export default function UserPicker({ currentUser, users, value, onChange }: User
           type="text"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Tìm user…"
+          placeholder={t('team.searchUserPlaceholder')}
           onKeyDown={e => {
             if (e.key === 'Escape') { setOpen(false); setQuery(''); }
             if (e.key === 'Enter' && filtered[0]) { pick(filtered[0].id); }
@@ -126,7 +128,7 @@ export default function UserPicker({ currentUser, users, value, onChange }: User
         >
           {filtered.length === 0 ? (
             <div style={{ padding: '8px 12px', color: 'var(--text-muted, #6B6B68)', fontSize: '.85rem' }}>
-              Không tìm thấy user
+              {t('team.noUserFound')}
             </div>
           ) : (
             filtered.map(u => {
@@ -155,7 +157,7 @@ export default function UserPicker({ currentUser, users, value, onChange }: User
                   onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                 >
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {fullName(u)}{isSelf ? ' (bạn)' : ''}
+                    {fullName(u)}{isSelf ? ` ${t('common.selfSuffix')}` : ''}
                   </span>
                   {u.mail && (
                     <span style={{ fontSize: '.7rem', opacity: 0.6, marginLeft: 8 }}>

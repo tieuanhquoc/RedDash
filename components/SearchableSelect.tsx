@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useT } from '@/lib/i18n';
 
 export interface SearchableSelectProps<T> {
   items: T[];
@@ -31,14 +32,17 @@ export default function SearchableSelect<T>({
   getLabel,
   getSubLabel,
   filterFn,
-  placeholder = 'Chọn…',
-  emptyMessage = 'Không tìm thấy',
+  placeholder,
+  emptyMessage,
   disabled,
   required,
   className = 'selectPill',
   maxHeight = 280,
   pillStyle,
 }: SearchableSelectProps<T>) {
+  const t = useT();
+  const actualPlaceholder = placeholder ?? t('common.select');
+  const actualEmptyMessage = emptyMessage ?? t('common.noResults');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -102,7 +106,7 @@ export default function SearchableSelect<T>({
         >
           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                          color: value ? undefined : 'var(--text-muted, #6B6B68)' }}>
-            {displayLabel || placeholder}
+            {displayLabel || actualPlaceholder}
           </span>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.5, flexShrink: 0 }}>
             <polyline points="6 9 12 15 18 9" />
@@ -115,7 +119,7 @@ export default function SearchableSelect<T>({
           type="text"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder={`Tìm ${placeholder.toLowerCase()}…`}
+          placeholder={t('common.searchWithName', { name: actualPlaceholder.toLowerCase() })}
           onKeyDown={e => {
             if (e.key === 'Escape') { setOpen(false); setQuery(''); }
             if (e.key === 'Enter' && filtered[0]) { e.preventDefault(); pick(filtered[0]); }
@@ -143,7 +147,7 @@ export default function SearchableSelect<T>({
         >
           {filtered.length === 0 ? (
             <div style={{ padding: '8px 12px', color: 'var(--text-muted, #6B6B68)', fontSize: '.85rem' }}>
-              {emptyMessage}
+              {actualEmptyMessage}
             </div>
           ) : (
             filtered.map(item => {
