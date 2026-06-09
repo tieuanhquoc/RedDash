@@ -58,22 +58,36 @@ jobs:
       - name: Build Next static export
         run: npm run build
 
-      - name: Build & sign Tauri (Windows)
-        uses: tauri-apps/tauri-action@v0
+      - name: Verify signing secret is wired
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY secret is empty or missing"
+            exit 1
+          fi
+          echo "Signing key present, length: ${#KEY} chars"
+
+      - name: Build & sign Tauri (Windows)
+        shell: bash
+        env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri:build -- --verbose
+
+      - name: Upload installers to release
+        uses: softprops/action-gh-release@v2
         with:
-          # Creates a draft GitHub Release if one matching the tag doesn't exist,
-          # uploads installers + .sig files, and (on tag push) publishes it.
-          tagName: ${{ github.event.inputs.version || github.ref_name }}
-          releaseName: 'RedDash ${{ github.event.inputs.version || github.ref_name }}'
-          releaseBody: 'See the assets to download and install this version. Auto-update enabled via `latest.json`.'
-          releaseDraft: true
-          prerelease: false
-          # Default `tauri build` covers both MSI and NSIS installers on Windows.
-          args: ''
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: 'RedDash ${{ github.event.inputs.version || github.ref_name }}'
+          body: 'Auto-update enabled via `latest.json`. See assets for installers.'
+          draft: true
+          files: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/msi/*.msi.sig
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe.sig
 
       - name: Stage portable build
         shell: bash
