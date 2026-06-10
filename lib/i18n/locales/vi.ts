@@ -126,6 +126,24 @@ const vi: Dict = {
       desc: 'Đổi ngôn ngữ hiển thị của ứng dụng',
     },
 
+    theme: {
+      section: 'Giao diện',
+      title: 'Chế độ hiển thị',
+      desc: 'Chọn giao diện sáng, tối hoặc theo hệ thống',
+      light: 'Sáng',
+      dark: 'Tối',
+      system: 'Theo hệ thống',
+    },
+
+    liquidGlass: {
+      title: 'Liquid Glass',
+      desc: 'Hiệu ứng kính mờ Apple-style cho sidebar và modal. Trên macOS bật tự động.',
+      autoOn: 'Tự động (theo hệ điều hành)',
+      toastOn: 'Đã bật Liquid Glass',
+      toastOff: 'Đã tắt Liquid Glass',
+      toastAuto: 'Liquid Glass: theo hệ điều hành ({state})',
+    },
+
     reset: {
       btn: 'Xoá toàn bộ cài đặt',
       confirmText: 'Xoá toàn bộ cài đặt?',
@@ -159,19 +177,19 @@ const vi: Dict = {
   },
 
   errors: {
-    network:        'Không kết nối được Redmine. Kiểm tra mạng hoặc URL.',
-    badToken:       'API token không đúng hoặc đã bị thu hồi.',
-    forbidden:      'Không có quyền thực hiện thao tác này.',
-    notFound:       'Không tìm thấy tài nguyên (issue, user, hoặc URL sai).',
-    timeout:        'Redmine phản hồi quá lâu, thử lại sau.',
-    badRequest:     'Dữ liệu gửi không hợp lệ.',
-    validation:     'Dữ liệu không hợp lệ (Redmine từ chối lưu).',
-    rateLimit:      'Quá nhiều request — chờ một chút rồi thử lại.',
-    server:         'Redmine gặp lỗi nội bộ. Thử lại sau ít phút.',
-    maintenance:    'Redmine đang bảo trì hoặc tạm thời không phản hồi.',
-    unknown:        'Có lỗi không xác định khi gọi Redmine.',
-    serverError:    'Lỗi máy chủ Redmine — thử lại sau.',
-    clientError:    'Yêu cầu bị từ chối.',
+    network: 'Không kết nối được Redmine. Kiểm tra mạng hoặc URL.',
+    badToken: 'API token không đúng hoặc đã bị thu hồi.',
+    forbidden: 'Không có quyền thực hiện thao tác này.',
+    notFound: 'Không tìm thấy tài nguyên (issue, user, hoặc URL sai).',
+    timeout: 'Redmine phản hồi quá lâu, thử lại sau.',
+    badRequest: 'Dữ liệu gửi không hợp lệ.',
+    validation: 'Dữ liệu không hợp lệ (Redmine từ chối lưu).',
+    rateLimit: 'Quá nhiều request — chờ một chút rồi thử lại.',
+    server: 'Redmine gặp lỗi nội bộ. Thử lại sau ít phút.',
+    maintenance: 'Redmine đang bảo trì hoặc tạm thời không phản hồi.',
+    unknown: 'Có lỗi không xác định khi gọi Redmine.',
+    serverError: 'Lỗi máy chủ Redmine — thử lại sau.',
+    clientError: 'Yêu cầu bị từ chối.',
   },
 
   calendar: {
@@ -263,7 +281,7 @@ const vi: Dict = {
   },
 
   favorites: {
-    title: '⭐ Pin',
+    title: 'Pin',
     addLabel: 'Thêm issue vào Pin',
     addPlaceholder: 'Gõ ID (vd: 9517) hoặc tên issue…',
     emptyText: 'Chưa có issue nào được pin.',
@@ -273,7 +291,7 @@ const vi: Dict = {
     logTimeTitle: 'Log Time với issue này',
     unpinTitle: 'Xoá khỏi pin',
     unpinAria: 'Xoá',
-    pinnedHeader: '⭐ Pin',
+    pinnedHeader: 'Pin',
     searchEmptyTip: 'Gõ để tìm issue, hoặc pin issue thường dùng (★)',
     pinTooltip: 'Pin issue này',
   },

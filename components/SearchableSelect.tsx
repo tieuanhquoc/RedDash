@@ -129,6 +129,7 @@ export default function SearchableSelect<T>({
 
       {open && (
         <div
+          className="dropdownPopup"
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
@@ -137,11 +138,10 @@ export default function SearchableSelect<T>({
             minWidth: 200,
             maxHeight,
             overflowY: 'auto',
-            background: 'var(--card, #FFFFFF)',
             border: '1px solid var(--border, rgba(55,53,47,.12))',
             borderRadius: 8,
             boxShadow: "0 4px 16px rgba(15,15,15,.10), 0 1px 4px rgba(15,15,15,.06)",
-            zIndex: 50,
+            zIndex: 1000,
             padding: 4,
           }}
         >

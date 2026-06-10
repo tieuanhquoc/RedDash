@@ -117,6 +117,24 @@ const en: Dict = {
       desc: 'Switch the UI language',
     },
 
+    theme: {
+      section: 'Appearance',
+      title: 'Theme',
+      desc: 'Choose light, dark, or follow the system',
+      light: 'Light',
+      dark: 'Dark',
+      system: 'System',
+    },
+
+    liquidGlass: {
+      title: 'Liquid Glass',
+      desc: 'Apple-style frosted material for the sidebar and modals. Auto-enabled on macOS.',
+      autoOn: 'Auto (follow OS)',
+      toastOn: 'Liquid Glass enabled',
+      toastOff: 'Liquid Glass disabled',
+      toastAuto: 'Liquid Glass: follows the OS ({state})',
+    },
+
     reset: {
       btn: 'Reset all settings',
       confirmText: 'Reset all settings?',
@@ -150,19 +168,19 @@ const en: Dict = {
   },
 
   errors: {
-    network:        'Cannot reach Redmine. Check the network or URL.',
-    badToken:       'API token is invalid or has been revoked.',
-    forbidden:      'You do not have permission for this action.',
-    notFound:       'Resource not found (issue, user, or URL).',
-    timeout:        'Redmine took too long to respond, please retry.',
-    badRequest:     'The request payload is invalid.',
-    validation:     'Invalid data (Redmine refused to save).',
-    rateLimit:      'Too many requests — wait a bit and retry.',
-    server:         'Redmine internal error. Try again later.',
-    maintenance:    'Redmine is under maintenance or unreachable.',
-    unknown:        'Unknown error while calling Redmine.',
-    serverError:    'Redmine server error — try again later.',
-    clientError:    'Request rejected.',
+    network: 'Cannot reach Redmine. Check the network or URL.',
+    badToken: 'API token is invalid or has been revoked.',
+    forbidden: 'You do not have permission for this action.',
+    notFound: 'Resource not found (issue, user, or URL).',
+    timeout: 'Redmine took too long to respond, please retry.',
+    badRequest: 'The request payload is invalid.',
+    validation: 'Invalid data (Redmine refused to save).',
+    rateLimit: 'Too many requests — wait a bit and retry.',
+    server: 'Redmine internal error. Try again later.',
+    maintenance: 'Redmine is under maintenance or unreachable.',
+    unknown: 'Unknown error while calling Redmine.',
+    serverError: 'Redmine server error — try again later.',
+    clientError: 'Request rejected.',
   },
 
   calendar: {
@@ -254,7 +272,7 @@ const en: Dict = {
   },
 
   favorites: {
-    title: '⭐ Pin',
+    title: 'Pin',
     addLabel: 'Pin an issue',
     addPlaceholder: 'Type ID (e.g. 9517) or issue subject…',
     emptyText: 'No pinned issues.',
@@ -264,7 +282,7 @@ const en: Dict = {
     logTimeTitle: 'Log Time with this issue',
     unpinTitle: 'Remove from pin',
     unpinAria: 'Delete',
-    pinnedHeader: '⭐ Pin',
+    pinnedHeader: 'Pin',
     searchEmptyTip: 'Type to search issue, or pin frequent issue (★)',
     pinTooltip: 'Pin this issue',
   },

@@ -77,21 +77,19 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
           {t('sidebar.favorites')}
         </button>
 
-        <div style={{ height: '1px', background: 'var(--border)', margin: '.35rem 0' }} />
-
         {isViewingSelf && (
           <button
-            className="navItem"
-            style={{ color: 'var(--amber)' }}
+            className="sidebarCta sidebarCtaActive"
             onClick={onBulkOpen}
             title={t('sidebar.logTimeTooltip')}
+            style={{ marginTop: '.35rem' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            {t('sidebar.logTime')}
-            <span style={{ marginLeft: 'auto', fontSize: '.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>⌘L</span>
+            <span>{t('sidebar.logTime')}</span>
+            <span style={{ marginLeft: 'auto', fontSize: '.7rem', opacity: 0.75, fontWeight: 500 }}>⌘L</span>
           </button>
         )}
       </nav>
@@ -105,7 +103,7 @@ export default function Sidebar({ onBulkOpen }: SidebarProps) {
           </div>
         </div>
         <button
-          className="iconBtn"
+          className="iconBtn sidebarSettingsBtn"
           onClick={() => dispatch({ type: 'SET_VIEW', payload: 'security' })}
           title={t('sidebar.settingsTitle')}
           style={state.view === 'security' ? { color: 'var(--accent, #6366F1)' } : undefined}
@@ -238,10 +236,19 @@ export function AppShell() {
     (async () => {
       try {
         const win = await import('@tauri-apps/api/window').then(m => m.getCurrentWindow());
-        const un = await win.onFocusChanged(({ payload: focused }) => {
+        const raw = await win.onFocusChanged(({ payload: focused }) => {
           if (cancelled) return;
           if (!focused && mode === -1) lockNow();
         });
+        // Idempotent + error-tolerant unlisten — guards against React
+        // StrictMode double cleanup and races where the listener record was
+        // already removed by Tauri (causes 'listeners[eventId].handlerId').
+        let unlistened = false;
+        const un = () => {
+          if (unlistened) return;
+          unlistened = true;
+          try { raw(); } catch { /* already gone */ }
+        };
         if (cancelled) un(); else tauriUnlisten = un;
       } catch { /* browser mode — fall back to DOM 'blur' only */ }
     })();

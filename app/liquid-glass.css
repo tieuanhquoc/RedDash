@@ -1,0 +1,669 @@
+/* =============================================================================
+   Liquid Glass — Apple-style frosted material for Web (WKWebView / Tauri).
+   Spec source: WWDC25-219 "Meet Liquid Glass", WWDC25-310, 323, 356.
+   Implementation note: ALL numeric values here are unverified by Apple (Apple
+   publishes qualitative guidance only). See research notes for the rationale
+   behind each value; treat them as a defensible Web approximation, not a
+   citation. Enabled when <html data-liquid-glass="on">; no-op otherwise.
+   ========================================================================== */
+
+/* ---------- Tokens (Regular variant, light theme) -------------------------- */
+[data-liquid-glass="on"] {
+  /* Blur / saturation */
+  --lg-blur-sm: 20px;
+  /* toolbar, button, dropdown, modal controls */
+  --lg-blur-lg: 30px;
+  /* sidebar, large surfaces, content cards */
+  --lg-saturate: 180%;
+
+  /* Surface tints — `--app-bg-control` and `--app-bg-card` are set
+     at runtime by the `get_native_bg_colors` Tauri command on macOS
+     (reads NSColor.controlBackgroundColor for the control layer and
+     NSColor.underPageBackgroundColor for content cards). On
+     Windows/Linux (or before the command resolves) the fallback
+     values apply. */
+  --lg-surface: var(--app-bg-control, rgba(255, 255, 255, 0.55));
+  --lg-surface-strong: rgba(255, 255, 255, 0.75);
+  /* hover / focused */
+  --lg-surface-card: var(--app-bg-card, rgba(255, 255, 255, 0.62));
+  /* content cards */
+  --lg-surface-tint: rgba(0, 122, 255, 0.18);
+  /* prominent w/ system blue */
+  --lg-surface-amber: rgba(255, 149, 0, 0.92);
+  /* Log Time CTA */
+  --lg-surface-amber-hover: rgba(255, 159, 10, 1);
+
+  /* System blue for active state — bolder than pastel tint. */
+  --lg-active-bg: #007AFF;
+  --lg-active-fg: #FFFFFF;
+  --lg-active-bg-dark: #0A84FF;
+
+  /* Specular + edge (split top/bottom border) */
+  --lg-edge-top: rgba(255, 255, 255, 0.6);
+  --lg-edge-bot: rgba(0, 0, 0, 0.08);
+  --lg-edge-top-dark: rgba(255, 255, 255, 0.18);
+  --lg-edge-bot-dark: rgba(0, 0, 0, 0.5);
+
+  /* Shadows — "lift" off the surface */
+  --lg-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --lg-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.14), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --lg-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.10);
+  --lg-shadow-float: 0 24px 60px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.10);
+
+  /* Concentric radii (concentric: parent_radius − padding). Apple uses
+     small rounded-rect (~6-8px) for most controls, NOT pill. Pill is
+     reserved for prominent CTAs (Update Now, OK). */
+  --lg-r-pill: 9999px;
+  --lg-r-xs: 6px;
+  /* nav items, small icon buttons, dropdown items */
+  --lg-r-sm: 8px;
+  /* buttons, select pills, search fields, cards */
+  --lg-r-md: 12px;
+  /* content cards, list rows */
+  --lg-r-lg: 16px;
+  /* larger content cards */
+  --lg-r-xl: 20px;
+  /* sidebar, modal */
+
+  /* Multi-edge specular: Apple uses light from the top-left, so highlights
+     appear on the top AND left edges. We layer two inset shadows to mimic. */
+  --lg-specular-tl:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 1px 0 0 rgba(255, 255, 255, 0.30);
+  --lg-specular-tl-dark:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 1px 0 0 rgba(255, 255, 255, 0.10);
+}
+
+/* Dark theme overrides */
+[data-liquid-glass="on"][data-theme="dark"] {
+  --lg-saturate: 160%;
+  /* Base app background — `var(--app-bg-control)` is set at runtime
+     on macOS to NSColor.controlBackgroundColor (typically 1–2 stops
+     lighter than textBackgroundColor, so glass doesn't go pitch
+     black). Fallback for Windows/Linux / pre-resolve. */
+  --lg-surface: var(--app-bg-control, rgba(33, 34, 32, 0.5));
+  /* Content cards (calendar, summary, list rows) — `underPageBackgroundColor`
+     in macOS dark is slightly LIGHTER than control (e.g. `#3A3A3C` vs
+     `#2C2C2E`), so cards read as raised surfaces over the sidebar
+     exactly like Apple System Settings' right pane. */
+  --lg-surface-card: var(--app-bg-card, rgba(33, 34, 32, 0.3));
+  --lg-surface-strong: rgba(44, 44, 46, 0.75);
+  --lg-surface-tint: rgba(10, 132, 255, 0.28);
+  --lg-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --lg-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --lg-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --lg-shadow-float: 0 24px 60px rgba(0, 0, 0, 0.75), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ===========================================================================
+   Component overrides — all scoped under [data-liquid-glass="on"].
+   Each block targets a class that already exists in the app.
+   ========================================================================== */
+
+/* ---------- App shell: floating window with inner margin -------------------
+   Default theme (globals.css) and LG share the same padding/gap here
+   (4 cạnh 10px, top 28px, gap 10px). LG only adds colour / shadow /
+   backdrop. */
+[data-liquid-glass="on"] .appShell {
+  /* Layout is shared — no overrides needed. */
+}
+
+/* --- Sidebar: floating glass panel --------------------------------------- */
+[data-liquid-glass="on"] .sidebar {
+  background-color: var(--lg-surface);
+  -webkit-backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-float), var(--lg-specular-tl);
+  border-radius: var(--lg-r-lg);
+  position: relative;
+  overflow: hidden;
+  /* Brand + footer: remove the card-like bg (sidebar is now the card) */
+  background-image: none;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .sidebar {
+  border-color: var(--lg-edge-bot-dark);
+  box-shadow: var(--lg-shadow-float), var(--lg-specular-tl-dark);
+}
+
+/* Inner top highlight across the whole sidebar (specular) */
+[data-liquid-glass="on"] .sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(to right,
+      transparent 0%,
+      var(--lg-edge-top) 20%,
+      var(--lg-edge-top) 80%,
+      transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --- Sidebar brand: align with floating shape ----------------------------- */
+[data-liquid-glass="on"] .sidebar .sidebarBrand {
+  border-bottom: 1px solid var(--lg-edge-bot);
+  padding: 0 1rem 1rem;
+  margin-bottom: .65rem;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .sidebar .sidebarBrand {
+  border-bottom-color: var(--lg-edge-bot-dark);
+}
+
+/* --- Sidebar nav items: small control on glass ---------------------------- */
+[data-liquid-glass="on"] .navItem {
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--lg-r-xs);
+  transition: background-color .15s ease, border-color .15s ease, transform .12s ease, color .15s ease;
+}
+
+[data-liquid-glass="on"] .navItem:hover {
+  background-color: var(--lg-surface-strong);
+  border-color: var(--lg-edge-bot);
+}
+
+[data-liquid-glass="on"] .navItem:hover {
+  border-top-color: var(--lg-edge-top);
+}
+
+[data-liquid-glass="on"] .navItemActive {
+  background-color: var(--lg-active-bg) !important;
+  color: var(--lg-active-fg) !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+  border-top-color: rgba(255, 255, 255, 0.30) !important;
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl);
+  font-weight: 600;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .navItemActive {
+  background-color: var(--lg-active-bg-dark) !important;
+  border-color: rgba(0, 0, 0, 0.4) !important;
+  border-top-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl-dark);
+}
+
+/* Active item's SVG icon should also be white */
+[data-liquid-glass="on"] .navItemActive svg {
+  color: var(--lg-active-fg) !important;
+}
+
+/* --- Sidebar Log Time CTA (only prominent when on calendar view) --------- */
+[data-liquid-glass="on"] .sidebarCta {
+  border-radius: var(--lg-r-xs);
+  background-color: var(--lg-surface);
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl);
+  transition: background-color .15s ease, color .15s ease, transform .12s ease, box-shadow .15s ease;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .sidebarCta {
+  border-color: var(--lg-edge-bot-dark);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl-dark);
+}
+
+[data-liquid-glass="on"] .sidebarCta:hover {
+  background-color: var(--lg-surface-strong);
+}
+
+[data-liquid-glass="on"] .sidebarCta svg {
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+/* Prominent amber state — only when on the calendar view (i.e. the
+   action is contextually relevant to what the user is looking at).
+   This is one of the few cases where Apple uses a true pill (rounded
+   CTA in dialogs like "Update Now" in App Store). */
+[data-liquid-glass="on"] .sidebarCtaActive {
+  background-color: var(--lg-surface-amber);
+  color: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.12);
+  border-top-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 24px rgba(255, 149, 0, 0.30), var(--lg-specular-tl);
+  font-weight: 600;
+  border-radius: var(--lg-r-pill);
+}
+
+[data-liquid-glass="on"] .sidebarCtaActive:hover {
+  background-color: var(--lg-surface-amber-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(255, 149, 0, 0.40), var(--lg-specular-tl);
+}
+
+[data-liquid-glass="on"] .sidebarCtaActive svg {
+  color: #FFFFFF;
+}
+
+/* --- Sidebar footer: user card ------------------------------------------ */
+[data-liquid-glass="on"] .sidebarFooter {
+  border-top: 1px solid var(--lg-edge-bot);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .sidebarFooter {
+  border-top-color: var(--lg-edge-bot-dark);
+}
+
+/* Brand row is hidden (see .sidebarBrand rule in globals.css) so we
+   don't need the footer divider. Same rule as the non-LG version. */
+[data-liquid-glass="on"][data-hide-sidebar-brand="true"] .sidebarFooter {
+  border-top: none;
+}
+
+[data-liquid-glass="on"] .userAvatar {
+  background-color: var(--lg-surface-tint) !important;
+  color: var(--lg-active-bg) !important;
+  box-shadow: inset 0 0 0 1px var(--lg-edge-top);
+}
+
+/* --- View header (toolbar): wrap as a glass panel ------------------------ */
+[data-liquid-glass="on"] .viewHeader {
+  background-color: var(--lg-surface);
+  -webkit-backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl);
+  border-radius: var(--lg-r-md);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .viewHeader {
+  border-color: var(--lg-edge-bot-dark);
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl-dark);
+}
+
+/* --- Modal box: tier "large" (Regular, anchored) ------------------------- */
+[data-liquid-glass="on"] .modalBox {
+  background-color: var(--lg-surface);
+  -webkit-backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  box-shadow: var(--lg-shadow-float), var(--lg-specular-tl);
+  border-radius: var(--lg-r-md);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .modalBox {
+  border-color: var(--lg-edge-bot-dark);
+  box-shadow: var(--lg-shadow-float), var(--lg-specular-tl-dark);
+}
+
+/* --- Modal overlay: dim layer behind glass (required for legibility) ----- */
+[data-liquid-glass="on"] .modalOverlay {
+  background: rgba(15, 15, 15, 0.20);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .modalOverlay {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* --- Buttons ------------------------------------------------------------- */
+[data-liquid-glass="on"] .btnPrimary {
+  background-color: var(--lg-surface-tint);
+  -webkit-backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl);
+  border-radius: var(--lg-r-sm);
+  color: var(--lg-active-bg);
+  font-weight: 600;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .btnPrimary {
+  color: #6FA8F0;
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl-dark);
+}
+
+[data-liquid-glass="on"] .btnPrimary:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--lg-surface-tint) 80%, var(--lg-surface-strong));
+  transform: translateY(-1px);
+  box-shadow: var(--lg-shadow-lg), var(--lg-specular-tl);
+}
+
+[data-liquid-glass="on"] .btnPrimary:disabled {
+  opacity: .6;
+}
+
+/* Prominent amber (Log Time bulk action, save buttons) — only place
+   that uses true pill. Apple uses pill only for the "default action"
+   in dialogs (e.g. "Update Now" in App Store). */
+[data-liquid-glass="on"] .btnPrimaryAmber {
+  background-color: var(--lg-surface-amber) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  border-top-color: rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 8px 24px rgba(255, 149, 0, 0.30), var(--lg-specular-tl) !important;
+  border-radius: var(--lg-r-pill) !important;
+}
+
+[data-liquid-glass="on"] .btnPrimaryAmber:hover:not(:disabled) {
+  background-color: var(--lg-surface-amber-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(255, 149, 0, 0.40), var(--lg-specular-tl) !important;
+}
+
+[data-liquid-glass="on"] .btnSecondary {
+  background-color: var(--lg-surface);
+  -webkit-backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl);
+  border-radius: var(--lg-r-sm);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .btnSecondary {
+  border-color: var(--lg-edge-bot-dark);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl-dark);
+}
+
+[data-liquid-glass="on"] .btnSecondary:hover {
+  background-color: var(--lg-surface-strong);
+}
+
+/* --- Select pill (closed state) — Apple style is rounded-rect ---------- */
+[data-liquid-glass="on"] .selectPill {
+  background-color: var(--lg-surface);
+  -webkit-backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl);
+  border-radius: var(--lg-r-sm);
+  transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .selectPill {
+  border-color: var(--lg-edge-bot-dark);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl-dark);
+}
+
+[data-liquid-glass="on"] .selectPill:hover {
+  background-color: var(--lg-surface-strong);
+}
+
+[data-liquid-glass="on"] .selectPill:focus {
+  border-color: var(--lg-active-bg);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.18), var(--lg-specular-tl);
+}
+
+/* --- Form inputs --------------------------------------------------------- */
+[data-liquid-glass="on"] .fieldInput {
+  background-color: var(--lg-surface);
+  -webkit-backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl);
+  border-radius: var(--lg-r-sm);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .fieldInput {
+  border-color: var(--lg-edge-bot-dark);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl-dark);
+}
+
+[data-liquid-glass="on"] .fieldInput:focus {
+  border-color: var(--lg-active-bg);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.18), var(--lg-specular-tl);
+}
+
+/* --- Content cards: Apple-style radius + glass ---------------------------- */
+[data-liquid-glass="on"] .calendarWrap,
+[data-liquid-glass="on"] .summaryStrip .summaryCard,
+[data-liquid-glass="on"] .teamTableWrap,
+[data-liquid-glass="on"] .heatmapWrap,
+[data-liquid-glass="on"] .missingBanner,
+[data-liquid-glass="on"] .statCard {
+  background-color: var(--lg-surface-card);
+  -webkit-backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl);
+  border-radius: var(--lg-r-md);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .calendarWrap,
+[data-liquid-glass="on"][data-theme="dark"] .summaryStrip .summaryCard,
+[data-liquid-glass="on"][data-theme="dark"] .teamTableWrap,
+[data-liquid-glass="on"][data-theme="dark"] .heatmapWrap,
+[data-liquid-glass="on"][data-theme="dark"] .missingBanner,
+[data-liquid-glass="on"][data-theme="dark"] .statCard {
+  border-color: var(--lg-edge-bot-dark);
+  background-color: var(--lg-surface-card);
+  box-shadow: var(--lg-shadow-md), var(--lg-specular-tl-dark);
+}
+
+/* Calendar header row: stays tinted (Apple style) */
+[data-liquid-glass="on"] .calHeaderRow {
+  background-color: var(--lg-surface-strong) !important;
+  border-bottom: 1px solid var(--lg-edge-bot) !important;
+  border-top-left-radius: var(--lg-r-md);
+  border-top-right-radius: var(--lg-r-md);
+}
+
+/* Summary cards: keep grid layout but smaller radius per card */
+[data-liquid-glass="on"] .summaryStrip .summaryCard {
+  border-radius: var(--lg-r-sm);
+}
+
+/* Missing banner: keep warning tint but rounded */
+[data-liquid-glass="on"] .missingBanner {
+  border-radius: var(--lg-r-sm);
+  background-color: rgba(255, 159, 10, 0.18) !important;
+  border-color: rgba(255, 149, 0, 0.40) !important;
+}
+
+/* Team table: inner cells stay solid (no glass) so contrast is high */
+[data-liquid-glass="on"] .teamTable thead th {
+  background-color: var(--lg-surface-strong) !important;
+  color: var(--text-muted);
+}
+
+[data-liquid-glass="on"] .teamTable .teamCellName {
+  background-color: var(--lg-surface-card) !important;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .teamTable thead th {
+  background-color: var(--lg-surface-strong) !important;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .teamTable .teamCellName {
+  background-color: var(--lg-surface-card) !important;
+}
+
+/* --- Favorites list items: rounded glass pills --------------------------- */
+[data-liquid-glass="on"] .favList .favItem {
+  background-color: var(--lg-surface);
+  -webkit-backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-sm)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot);
+  border-top-color: var(--lg-edge-top);
+  box-shadow: var(--lg-shadow-sm), var(--lg-specular-tl);
+  border-radius: var(--lg-r-sm);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .favList .favItem {
+  border-color: var(--lg-edge-bot-dark);
+  background-color: var(--lg-surface);
+}
+
+[data-liquid-glass="on"] .favList .favLogBtn {
+  background-color: var(--lg-active-bg) !important;
+  color: #FFFFFF !important;
+  border-radius: var(--lg-r-sm);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
+}
+
+/* --- Detail modal entries: rounded -------------------------------------- */
+[data-liquid-glass="on"] .detailList .detailEntry {
+  background-color: var(--lg-surface-strong);
+  border: 1px solid var(--lg-edge-bot);
+  border-radius: var(--lg-r-sm);
+  box-shadow: var(--lg-shadow-sm);
+}
+
+/* --- Dropdown (SearchableSelect panel + Select popup) ------------------- */
+[data-liquid-glass="on"] .dropdown,
+[data-liquid-glass="on"] .dropdownPopup,
+[data-liquid-glass="on"] .contextMenu {
+  background-color: var(--lg-surface) !important;
+  -webkit-backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot) !important;
+  box-shadow: var(--lg-shadow-lg), var(--lg-specular-tl) !important;
+  border-radius: var(--lg-r-sm) !important;
+  padding: 6px !important;
+}
+
+/* --- MonthPicker popup (custom calendar grid) ----------------------------- */
+[data-liquid-glass="on"] .monthPickerPopup {
+  background-color: var(--lg-surface) !important;
+  -webkit-backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-lg)) saturate(var(--lg-saturate));
+  border: 1px solid var(--lg-edge-bot) !important;
+  box-shadow: var(--lg-shadow-lg), var(--lg-specular-tl) !important;
+  border-radius: var(--lg-r-sm) !important;
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .monthPickerPopup {
+  border-color: var(--lg-edge-bot-dark) !important;
+  box-shadow: var(--lg-shadow-lg), var(--lg-specular-tl-dark) !important;
+}
+
+[data-liquid-glass="on"] .monthPickerSpinner:hover:not(:disabled) {
+  background-color: var(--lg-surface-strong);
+}
+
+[data-liquid-glass="on"] .monthPickerCell:hover:not(:disabled) {
+  background-color: var(--lg-surface-strong);
+}
+
+[data-liquid-glass="on"] .monthPickerFooterBtn:hover {
+  background-color: var(--lg-surface-strong);
+}
+
+[data-liquid-glass="on"][data-theme="dark"] .dropdown,
+[data-liquid-glass="on"][data-theme="dark"] .dropdownPopup,
+[data-liquid-glass="on"][data-theme="dark"] .contextMenu {
+  border-color: var(--lg-edge-bot-dark) !important;
+  box-shadow: var(--lg-shadow-lg), var(--lg-specular-tl-dark) !important;
+}
+
+[data-liquid-glass="on"] .dropdownItem,
+[data-liquid-glass="on"] .contextMenu .ctxItem {
+  border-radius: var(--lg-r-xs);
+  transition: background-color .12s ease;
+}
+
+[data-liquid-glass="on"] .dropdownItem:hover,
+[data-liquid-glass="on"] .ctxItem:hover {
+  background-color: var(--lg-surface-strong);
+}
+
+/* ---------- A11y fallbacks ------------------------------------------------- */
+@media (prefers-reduced-transparency: reduce) {
+
+  [data-liquid-glass="on"] .sidebar,
+  [data-liquid-glass="on"] .modalBox,
+  [data-liquid-glass="on"] .viewHeader,
+  [data-liquid-glass="on"] .calendarWrap,
+  [data-liquid-glass="on"] .summaryStrip .summaryCard,
+  [data-liquid-glass="on"] .teamTableWrap,
+  [data-liquid-glass="on"] .heatmapWrap,
+  [data-liquid-glass="on"] .statCard,
+  [data-liquid-glass="on"] .missingBanner,
+  [data-liquid-glass="on"] .favList .favItem,
+  [data-liquid-glass="on"] .selectPill,
+  [data-liquid-glass="on"] .btnPrimary,
+  [data-liquid-glass="on"] .btnPrimaryAmber,
+  [data-liquid-glass="on"] .btnSecondary,
+  [data-liquid-glass="on"] .sidebarCta,
+  [data-liquid-glass="on"] .navItem,
+  [data-liquid-glass="on"] .fieldInput,
+  [data-liquid-glass="on"] .dropdown,
+  [data-liquid-glass="on"] .dropdownPopup,
+  [data-liquid-glass="on"] .contextMenu,
+  [data-liquid-glass="on"] .modalOverlay {
+    -webkit-backdrop-filter: blur(10px) saturate(120%) !important;
+    backdrop-filter: blur(10px) saturate(120%) !important;
+    background-color: rgba(255, 255, 255, 0.88) !important;
+  }
+
+  [data-liquid-glass="on"][data-theme="dark"] .sidebar,
+  [data-liquid-glass="on"][data-theme="dark"] .modalBox,
+  [data-liquid-glass="on"][data-theme="dark"] .viewHeader,
+  [data-liquid-glass="on"][data-theme="dark"] .calendarWrap,
+  [data-liquid-glass="on"][data-theme="dark"] .summaryStrip .summaryCard,
+  [data-liquid-glass="on"][data-theme="dark"] .teamTableWrap,
+  [data-liquid-glass="on"][data-theme="dark"] .heatmapWrap,
+  [data-liquid-glass="on"][data-theme="dark"] .statCard,
+  [data-liquid-glass="on"][data-theme="dark"] .missingBanner,
+  [data-liquid-glass="on"][data-theme="dark"] .favList .favItem,
+  [data-liquid-glass="on"][data-theme="dark"] .selectPill,
+  [data-liquid-glass="on"][data-theme="dark"] .btnPrimary,
+  [data-liquid-glass="on"][data-theme="dark"] .btnPrimaryAmber,
+  [data-liquid-glass="on"][data-theme="dark"] .btnSecondary,
+  [data-liquid-glass="on"][data-theme="dark"] .sidebarCta,
+  [data-liquid-glass="on"][data-theme="dark"] .navItem,
+  [data-liquid-glass="on"][data-theme="dark"] .fieldInput,
+  [data-liquid-glass="on"][data-theme="dark"] .dropdown,
+  [data-liquid-glass="on"][data-theme="dark"] .dropdownPopup,
+  [data-liquid-glass="on"][data-theme="dark"] .contextMenu,
+  [data-liquid-glass="on"][data-theme="dark"] .modalOverlay {
+    background-color: rgba(38, 38, 42, 0.92) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  [data-liquid-glass="on"] .navItem,
+  [data-liquid-glass="on"] .btnPrimary,
+  [data-liquid-glass="on"] .btnPrimaryAmber,
+  [data-liquid-glass="on"] .btnSecondary,
+  [data-liquid-glass="on"] .sidebarCta,
+  [data-liquid-glass="on"] .selectPill,
+  [data-liquid-glass="on"] .favLogBtn {
+    transition: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+
+  [data-liquid-glass="on"] .sidebar,
+  [data-liquid-glass="on"] .modalBox,
+  [data-liquid-glass="on"] .viewHeader,
+  [data-liquid-glass="on"] .calendarWrap,
+  [data-liquid-glass="on"] .summaryStrip .summaryCard,
+  [data-liquid-glass="on"] .teamTableWrap,
+  [data-liquid-glass="on"] .statCard,
+  [data-liquid-glass="on"] .selectPill,
+  [data-liquid-glass="on"] .btnPrimary,
+  [data-liquid-glass="on"] .btnSecondary,
+  [data-liquid-glass="on"] .sidebarCta,
+  [data-liquid-glass="on"] .navItem,
+  [data-liquid-glass="on"] .fieldInput,
+  [data-liquid-glass="on"] .dropdown,
+  [data-liquid-glass="on"] .dropdownPopup,
+  [data-liquid-glass="on"] .contextMenu {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: Canvas !important;
+    border: 2px solid CanvasText !important;
+    box-shadow: none !important;
+  }
+
+  [data-liquid-glass="on"] .navItemActive {
+    background-color: Highlight !important;
+    color: HighlightText !important;
+  }
+}

@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // Hide the floating dev indicator ("1 Issue" pill) — it overlaps the
+  // sidebar user card and isn't useful inside a Tauri desktop app. Errors
+  // still surface in the terminal/webview devtools.
+  devIndicators: false,
   turbopack: {
     root: path.resolve(__dirname),
   },

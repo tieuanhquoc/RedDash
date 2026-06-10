@@ -111,6 +111,10 @@ pub fn run() {
 
             // Translucent window background — macOS NSVisualEffectView
             // (closest to Liquid Glass shipped with Tahoe), Windows Mica.
+            // The radius parameter rounds the inner blur layer so the
+            // floating-app aesthetic (sidebar inset from window edge) reads
+            // correctly. The window itself stays a rectangle; the .appShell
+            // CSS padding + glass surface alpha sell the "floating" look.
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             if let Some(win) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
@@ -120,7 +124,7 @@ pub fn run() {
                         &win,
                         NSVisualEffectMaterial::HudWindow,
                         Some(NSVisualEffectState::Active),
-                        Some(12.0),
+                        Some(14.0),
                     );
                 }
                 #[cfg(target_os = "windows")]
@@ -265,6 +269,7 @@ pub fn run() {
             redmine_request,
             open_url,
             update_tray_total,
+            get_native_bg_colors,
             biometric::biometric_available,
             biometric::biometric_is_enabled,
             biometric::biometric_enroll,
@@ -288,4 +293,76 @@ pub fn run() {
             }
             let _ = (app, event);
         });
+}
+
+// ===========================================================================
+// Native macOS theme colors
+// ===========================================================================
+//
+// NSColor has many semantic colors that adapt to the user's appearance
+// (light/dark) and accessibility settings (Increase Contrast, Reduce
+// Transparency, etc.). The web layer can't read them directly — WebKit
+// has no bridge to AppKit semantic colors. These commands read the
+// RGBA components (0.0–1.0) from Rust and return them so the frontend
+// can paint surfaces that match what the OS shows.
+//
+// CGColor path:
+//   1. `[NSColor <name>]`              → NSColor
+//   2. `[color CGColor]`               → CGColorRef (Core Foundation)
+//   3. `CGColorGetComponents`          → rgba (CGFloat array)
+
+#[cfg(target_os = "macos")]
+fn read_nscolor(name: &str) -> [f64; 4] {
+    use objc2::class;
+    use objc2::runtime::{AnyObject, MessageReceiver, Sel};
+    use std::ffi::CString;
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGColorGetNumberOfComponents(c: *const AnyObject) -> usize;
+        fn CGColorGetComponents(c: *const AnyObject, components: *mut f64);
+    }
+
+    let color_class = class!(NSColor);
+    let sel_name = CString::new(name).unwrap();
+    let sel: Sel = Sel::register(sel_name.as_c_str());
+    // Dispatch the dynamic selector through the runtime — `msg_send![..., sel: sel]`
+    // would send a literal selector named `sel:` instead of the one in `sel`.
+    let ns_color: *mut AnyObject = unsafe {
+        MessageReceiver::send_message(color_class, sel, ())
+    };
+    if ns_color.is_null() {
+        return [0.0, 0.0, 0.0, 1.0];
+    }
+    let cg_color: *mut AnyObject = unsafe { objc2::msg_send![ns_color, CGColor] };
+    if cg_color.is_null() {
+        return [0.0, 0.0, 0.0, 1.0];
+    }
+    let mut rgba: [f64; 4] = [0.0, 0.0, 0.0, 1.0];
+    let count = unsafe { CGColorGetNumberOfComponents(cg_color) };
+    if count >= 3 {
+        unsafe { CGColorGetComponents(cg_color, rgba.as_mut_ptr()); }
+    }
+    if count == 3 {
+        rgba[3] = 1.0;
+    }
+    rgba
+}
+
+/// Returns two semantic macOS background colors as RGBA floats:
+/// - `control_bg`     — base app surface (sidebar, modal, panels).
+///   Uses `NSColor.controlBackgroundColor`, the semantic color for
+///   controls. Typically 1–2 stops lighter than `textBackgroundColor`
+///   in dark mode, which keeps glass surfaces from going pitch black.
+/// - `under_page_bg`  — content cards (calendar, summary, list rows).
+///   Uses `NSColor.underPageBackgroundColor`, the "page" tone — slightly
+///   lighter than control in dark mode so cards read as raised above
+///   the sidebar.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn get_native_bg_colors() -> [[f64; 4]; 2] {
+    [
+        read_nscolor("controlBackgroundColor"),
+        read_nscolor("underPageBackgroundColor"),
+    ]
 }

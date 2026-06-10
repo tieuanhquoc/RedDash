@@ -9,6 +9,7 @@ import {
 } from '@/lib/biometric';
 import { openExternal } from '@/lib/open-url';
 import { useI18n, AVAILABLE_LOCALES } from '@/lib/i18n';
+import { useTheme, useLiquidGlass } from '@/lib/theme';
 
 // ─── reusable bits ───────────────────────────────────────────────────────────
 
@@ -107,6 +108,8 @@ export const LS_AUTO_LOCK_MINUTES = 'app.autoLockMinutes';
 export default function SecurityView() {
   const { state, dispatch, showToast } = useApp();
   const { locale, setLocale, t } = useI18n();
+  const { theme, setTheme } = useTheme();
+  const { effective: lg, choice: lgChoice, setChoice: setLgChoice } = useLiquidGlass();
   const [appVersion, setAppVersion] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
@@ -237,7 +240,7 @@ export default function SecurityView() {
         flexDirection: 'column',
         flex: 1,
       }}>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 600, marginBottom: '.25rem' }}>{t('settings.title')}</h1>
+      <h1 className="viewTitle" style={{ marginBottom: '.25rem' }}>{t('settings.title')}</h1>
       <p style={{ color: 'var(--text-muted)', fontSize: '.88rem', marginBottom: '1.5rem' }}>
         {t('settings.subtitle')}
       </p>
@@ -302,6 +305,65 @@ export default function SecurityView() {
             />
           }
         />
+      </Section>
+
+      {/* ─── Giao diện ──────────────────────────────────────────────── */}
+      <Section title={t('settings.theme.section')}>
+        <Row
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none" />
+            </svg>
+          }
+          iconBg="rgba(168,85,247,.12)" iconColor="#A855F7"
+          title={t('settings.theme.title')}
+          description={t('settings.theme.desc')}
+          right={
+            <Select
+              options={[
+                { value: 'light',  label: `☀  ${t('settings.theme.light')}` },
+                { value: 'dark',   label: `☾  ${t('settings.theme.dark')}` },
+                { value: 'system', label: `◐  ${t('settings.theme.system')}` },
+              ]}
+              value={theme}
+              onChange={setTheme}
+              pillStyle={{ minWidth: 160 }}
+            />
+          }
+        />
+        {/* Liquid Glass — tạm ẩn cho đến khi mở lại tính năng.
+        <div style={{ borderTop: '1px solid var(--border)' }} />
+        <Row
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 3a9 9 0 1 0 0 18 5 5 0 0 1 0-10 5 5 0 0 0 0-8z" />
+            </svg>
+          }
+          iconBg="rgba(56,189,248,.12)" iconColor="#0EA5E9"
+          title={t('settings.liquidGlass.title')}
+          description={t('settings.liquidGlass.desc')}
+          right={
+            <Select
+              options={[
+                { value: 'auto', label: `◐  ${t('settings.liquidGlass.autoOn')}${lgChoice === null && lg === 'on' ? ' · ON' : lgChoice === null && lg === 'off' ? ' · OFF' : ''}` },
+                { value: 'on',   label: `●  ${t('settings.liquidGlass.toastOn')}` },
+                { value: 'off',  label: `○  ${t('settings.liquidGlass.toastOff')}` },
+              ]}
+              value={lgChoice ?? 'auto'}
+              onChange={(v) => {
+                setLgChoice(v === 'auto' ? null : v);
+                if (v === 'auto') {
+                  showToast(t('settings.liquidGlass.toastAuto', { state: lg }), 'info');
+                } else {
+                  showToast(v === 'on' ? t('settings.liquidGlass.toastOn') : t('settings.liquidGlass.toastOff'), 'info');
+                }
+              }}
+              pillStyle={{ minWidth: 180 }}
+            />
+          }
+        />
+        */}
       </Section>
 
       {/* ─── Bảo mật ────────────────────────────────────────────────────── */}
