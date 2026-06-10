@@ -366,3 +366,11 @@ fn get_native_bg_colors() -> [[f64; 4]; 2] {
         read_nscolor("underPageBackgroundColor"),
     ]
 }
+
+// Stub for non-macOS so the Tauri command list compiles on Windows/Linux.
+// The frontend falls back to CSS defaults when alpha == 0.
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn get_native_bg_colors() -> [[f64; 4]; 2] {
+    [[0.0; 4], [0.0; 4]]
+}
