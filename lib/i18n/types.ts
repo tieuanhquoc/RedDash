@@ -116,6 +116,24 @@ export interface Dict {
       desc: string;
     };
 
+    theme: {
+      section: string;
+      title: string;
+      desc: string;
+      light: string;
+      dark: string;
+      system: string;
+    };
+
+    liquidGlass: {
+      title: string;
+      desc: string;
+      autoOn: string;
+      toastOn: string;
+      toastOff: string;
+      toastAuto: string;
+    };
+
     reset: {
       btn: string;
       confirmText: string;

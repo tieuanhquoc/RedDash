@@ -12,6 +12,8 @@
     "core:window:allow-set-focus",
     "core:window:allow-close",
     "core:window:allow-destroy",
+    "core:window:allow-start-dragging",
+    "core:window:allow-is-decorated",
     "updater:default",
     "dialog:default",
     "process:default",

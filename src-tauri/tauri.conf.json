@@ -10,9 +10,10 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "RedDash",
+        "title": "",
         "width": 1280,
         "height": 820,
         "minWidth": 960,
@@ -20,7 +21,7 @@
         "resizable": true,
         "fullscreen": false,
         "transparent": true,
-        "titleBarStyle": "Transparent"
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {
